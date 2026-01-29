@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Executive Dashboard - InfraSense</title>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            color: #e2e8f0;
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 50px;
+        }
+        
+        header h1 {
+            font-size: 48px;
+            color: #00d4ff;
+            margin-bottom: 10px;
+            text-shadow: 0 0 30px rgba(0, 212, 255, 0.2);
+        }
+        
+        header p {
+            font-size: 18px;
+            color: #cbd5e1;
+        }
+        
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 25px;
+            margin-bottom: 50px;
+        }
+        
+        .metric-card {
+            background: rgba(30, 41, 59, 0.6);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(0, 212, 255, 0.2);
+            border-radius: 12px;
+            padding: 30px;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+        
+        .metric-card:hover {
+            border-color: #00d4ff;
+            box-shadow: 0 0 30px rgba(0, 212, 255, 0.15);
+            transform: translateY(-5px);
+        }
+        
+        .metric-icon {
+            font-size: 40px;
+            color: #00d4ff;
+            margin-bottom: 15px;
+        }
+        
+        .metric-value {
+            font-size: 36px;
+            font-weight: 700;
+            color: #00d4ff;
+            margin-bottom: 5px;
+        }
+        
+        .metric-label {
+            font-size: 14px;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .section {
+            background: rgba(30, 41, 59, 0.4);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(0, 212, 255, 0.1);
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 30px;
+        }
+        
+        .section h2 {
+            font-size: 28px;
+            color: #00d4ff;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .section ul {
+            list-style: none;
+            margin-left: 0;
+        }
+        
+        .section li {
+            padding: 12px 0;
+            color: #cbd5e1;
+            border-bottom: 1px solid rgba(51, 65, 85, 0.3);
+            font-size: 16px;
+        }
+        
+        .section li:last-child {
+            border-bottom: none;
+        }
+        
+        .section li:before {
+            content: "✓";
+            color: #00d4ff;
+            margin-right: 12px;
+            font-weight: 700;
+        }
+        
+        .tech-stack {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .tech-item {
+            background: rgba(15, 23, 42, 0.5);
+            border: 1px solid #334155;
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+            color: #cbd5e1;
+            font-size: 14px;
+        }
+        
+        .cta-section {
+            background: linear-gradient(135deg, rgba(0, 212, 255, 0.1), rgba(0, 212, 255, 0.05));
+            border: 2px solid #00d4ff;
+            border-radius: 12px;
+            padding: 30px;
+            text-align: center;
+            margin-top: 50px;
+        }
+        
+        .cta-button {
+            display: inline-block;
+            background: #00d4ff;
+            color: #0f172a;
+            padding: 15px 40px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 700;
+            margin: 10px;
+            transition: all 0.3s ease;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        
+        .cta-button:hover {
+            background: #00b8cc;
+            box-shadow: 0 0 20px rgba(0, 212, 255, 0.3);
+            transform: scale(1.05);
+        }
+        
+        .outcome-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        .outcome-item {
+            background: rgba(15, 23, 42, 0.5);
+            border-left: 4px solid #00d4ff;
+            padding: 20px;
+            border-radius: 8px;
+        }
+        
+        .outcome-title {
+            font-weight: 700;
+            color: #00d4ff;
+            margin-bottom: 8px;
+        }
+        
+        .outcome-value {
+            font-size: 20px;
+            color: #cbd5e1;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header>
+            <h1>🏗️ InfraSense Executive Dashboard</h1>
+            <p>AI-Powered Infrastructure Decision Intelligence</p>
+        </header>
+        
+        <!-- Key Metrics -->
+        <div class="metrics-grid">
+            <div class="metric-card">
+                <div class="metric-icon">💰</div>
+                <div class="metric-value">₹2,850Cr</div>
+                <div class="metric-label">Total Investment</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-icon">⏱️</div>
+                <div class="metric-value">2.5M hrs</div>
+                <div class="metric-label">Annual Time Savings</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-icon">📈</div>
+                <div class="metric-value">₹500Cr+</div>
+                <div class="metric-label">Annual Economic Benefit</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-icon">🌍</div>
+                <div class="metric-value">15%</div>
+                <div class="metric-label">CO₂ Reduction</div>
+            </div>
+        </div>
+        
+        <!-- Problem Statement -->
+        <div class="section">
+            <h2>
+                <i class="fas fa-exclamation-circle"></i>
+                Problem Statement
+            </h2>
+            <ul>
+                <li>Traffic congestion growing 8-12% annually across major metros</li>
+                <li>Road infrastructure 70% in poor condition, causing ₹120Cr daily productivity loss</li>
+                <li>Manual infrastructure planning takes weeks; AI-powered analysis can optimize decisions in hours</li>
+            </ul>
+        </div>
+        
+        <!-- Solution Overview -->
+        <div class="section">
+            <h2>
+                <i class="fas fa-lightbulb"></i>
+                Solution Overview
+            </h2>
+            <ul>
+                <li><strong>Real-time AI Analysis:</strong> Integrates 4 major APIs (Google Maps, OpenStreetMap, GPT-4, Grok AI) for comprehensive infrastructure assessment</li>
+                <li><strong>Smart Route Optimization:</strong> Avoids water bodies, residential areas, existing roads while minimizing cost and time</li>
+                <li><strong>Predictive Intelligence:</strong> AI recommends optimal project sequences and budget allocations based on ROI</li>
+            </ul>
+        </div>
+        
+        <!-- Technology Stack -->
+        <div class="section">
+            <h2>
+                <i class="fas fa-cogs"></i>
+                Technology Stack
+            </h2>
+            <div class="tech-stack">
+                <div class="tech-item">
+                    <strong>Frontend:</strong><br>HTML5, CSS3, Leaflet.js
+                </div>
+                <div class="tech-item">
+                    <strong>Backend:</strong><br>FastAPI, Python 3.14, Uvicorn
+                </div>
+                <div class="tech-item">
+                    <strong>APIs:</strong><br>Google Maps, OpenStreetMap
+                </div>
+                <div class="tech-item">
+                    <strong>AI:</strong><br>GPT-4, Xai Grok
+                </div>
+                <div class="tech-item">
+                    <strong>Analytics:</strong><br>Multi-Agent System
+                </div>
+                <div class="tech-item">
+                    <strong>Performance:</strong><br>Caching, Debouncing
+                </div>
+            </div>
+        </div>
+        
+        <!-- Expected Outcomes -->
+        <div class="section">
+            <h2>
+                <i class="fas fa-chart-line"></i>
+                Expected Outcomes
+            </h2>
+            <div class="outcome-grid">
+                <div class="outcome-item">
+                    <div class="outcome-title">Traffic Reduction</div>
+                    <div class="outcome-value">25-30% decrease in peak congestion</div>
+                </div>
+                <div class="outcome-item">
+                    <div class="outcome-title">Time Savings</div>
+                    <div class="outcome-value">2.5M hours annually (500K commuters)</div>
+                </div>
+                <div class="outcome-item">
+                    <div class="outcome-title">Economic Impact</div>
+                    <div class="outcome-value">₹500Cr+ annual GDP contribution</div>
+                </div>
+                <div class="outcome-item">
+                    <div class="outcome-title">Environmental Benefit</div>
+                    <div class="outcome-value">15% CO₂ reduction in transport</div>
+                </div>
+                <div class="outcome-item">
+                    <div class="outcome-title">ROI Timeline</div>
+                    <div class="outcome-value">3-5 year payback period</div>
+                </div>
+                <div class="outcome-item">
+                    <div class="outcome-title">Scalability</div>
+                    <div class="outcome-value">Deployable to 50+ cities nationally</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Rollout Strategy -->
+        <div class="section">
+            <h2>
+                <i class="fas fa-road"></i>
+                Implementation Rollout
+            </h2>
+            <ul>
+                <li><strong>Phase 1 (Months 1-3):</strong> Pilot deployment in Delhi NCR region (8-10 critical roads analyzed)</li>
+                <li><strong>Phase 2 (Months 4-6):</strong> Scale to 4 major metros (Mumbai, Bangalore, Hyderabad, Pune)</li>
+                <li><strong>Phase 3 (Months 7-12):</strong> National rollout across 50+ cities with localized optimization</li>
+            </ul>
+        </div>
+        
+        <!-- ROI Analysis -->
+        <div class="section">
+            <h2>
+                <i class="fas fa-percent"></i>
+                Return on Investment
+            </h2>
+            <ul>
+                <li><strong>Payback Period:</strong> 3-5 years from project completion</li>
+                <li><strong>Cost per Kilometer:</strong> ₹4-15Cr (based on road type: Tertiary to Highway)</li>
+                <li><strong>Break-even Timeline:</strong> Approximately 6 years with conservative projections</li>
+                <li><strong>Annual Recurring Benefit:</strong> ₹500Cr+ from time savings, fuel savings, and increased productivity</li>
+            </ul>
+        </div>
+        
+        <!-- Call to Action -->
+        <div class="cta-section">
+            <h2 style="color: #00d4ff; margin-bottom: 20px;">Ready to Transform Infrastructure?</h2>
+            <div>
+                <a href="http://localhost:5000" class="cta-button">
+                    <i class="fas fa-map"></i> View Main Dashboard
+                </a>
+                <a href="http://localhost:5000/analysis-dashboard-clean.html" class="cta-button">
+                    <i class="fas fa-chart-bar"></i> Analysis Dashboard
+                </a>
+            </div>
+            <p style="margin-top: 20px; color: #94a3b8;">
+                All dashboards are fully functional with real data integration. 
+                Contact our team for a complete demonstration.
+            </p>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>InfraSense - Analysis Dashboard</title>
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', sans-serif; background: #0f172a; color: #e2e8f0; overflow: hidden; }
+        
+        .dashboard { display: flex; height: 100vh; }
+        
+        .sidebar { width: 340px; background: #1e293b; border-right: 1px solid #334155; overflow-y: auto; padding: 20px; }
+        .sidebar h2 { font-size: 18px; margin-bottom: 20px; color: #f1f5f9; }
+        
+        .search-box { margin-bottom: 20px; }
+        .search-box input { width: 100%; padding: 10px; background: #0f172a; border: 1px solid #475569; border-radius: 6px; color: #e2e8f0; font-size: 13px; }
+        .search-box input:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
+        
+        .filter-group { margin-bottom: 20px; }
+        .filter-group label { display: block; font-size: 12px; font-weight: 600; margin-bottom: 8px; color: #cbd5e1; }
+        .filter-group select { width: 100%; padding: 8px; background: #0f172a; border: 1px solid #475569; border-radius: 6px; color: #e2e8f0; font-size: 12px; }
+        
+        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+        .stat-box { background: #0f172a; padding: 12px; border-radius: 8px; border-left: 3px solid #3b82f6; }
+        .stat-value { font-size: 18px; font-weight: 700; color: #f1f5f9; }
+        .stat-label { font-size: 11px; color: #94a3b8; margin-top: 4px; }
+        
+        .roads-list { max-height: 400px; overflow-y: auto; }
+        .road-item { background: #0f172a; padding: 12px; border-radius: 6px; margin-bottom: 8px; cursor: pointer; transition: all 0.3s; border-left: 2px solid #475569; }
+        .road-item:hover { background: #1e293b; border-left-color: #3b82f6; }
+        .road-name { font-weight: 600; font-size: 13px; color: #f1f5f9; }
+        .road-details { font-size: 11px; color: #94a3b8; margin-top: 4px; }
+        
+        .main-content { flex: 1; display: flex; flex-direction: column; }
+        
+        #map { flex: 1; background: #0f172a; }
+        
+        .results-panel { height: 350px; background: #1e293b; border-top: 1px solid #334155; padding: 20px; overflow-y: auto; }
+        .results-panel h3 { margin-bottom: 15px; font-size: 14px; color: #f1f5f9; }
+        
+        .result-card { background: #0f172a; padding: 12px; border-radius: 8px; margin-bottom: 10px; border: 1px solid #334155; }
+        .result-title { font-weight: 600; color: #3b82f6; font-size: 13px; }
+        .result-stat { display: flex; justify-content: space-between; font-size: 12px; margin-top: 8px; }
+        .result-stat-label { color: #94a3b8; }
+        .result-stat-value { color: #f1f5f9; font-weight: 600; }
+        
+        .badges { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+        .badge { background: rgba(59, 130, 246, 0.2); color: #60a5fa; padding: 2px 8px; border-radius: 4px; font-size: 10px; }
+        .badge.critical { background: rgba(239, 68, 68, 0.2); color: #fca5a5; }
+        .badge.high { background: rgba(251, 146, 60, 0.2); color: #fdba74; }
+        
+        .loading { text-align: center; padding: 20px; color: #94a3b8; }
+        .spinner { width: 24px; height: 24px; border: 2px solid #334155; border-top-color: #3b82f6; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 10px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+    </style>
+</head>
+<body>
+    <div class="dashboard">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <h2><i class="fas fa-search"></i> Search & Filter</h2>
+            
+            <div class="search-box">
+                <input type="text" id="searchInput" placeholder="Search roads, cities, or routes...">
+            </div>
+            
+            <div class="filter-group">
+                <label>Area</label>
+                <select id="areaFilter">
+                    <option value="">All Areas</option>
+                    <option value="delhi">Delhi</option>
+                    <option value="gurgaon">Gurgaon</option>
+                    <option value="noida">Noida</option>
+                    <option value="bangalore">Bangalore</option>
+                </select>
+            </div>
+            
+            <div class="filter-group">
+                <label>Priority</label>
+                <select id="priorityFilter">
+                    <option value="">All Priorities</option>
+                    <option value="critical">Critical</option>
+                    <option value="high">High</option>
+                    <option value="medium">Medium</option>
+                    <option value="low">Low</option>
+                </select>
+            </div>
+            
+            <div class="filter-group">
+                <label>Road Type</label>
+                <select id="typeFilter">
+                    <option value="">All Types</option>
+                    <option value="highway">Highway</option>
+                    <option value="primary">Primary</option>
+                    <option value="secondary">Secondary</option>
+                </select>
+            </div>
+            
+            <div class="stats-grid">
+                <div class="stat-box">
+                    <div class="stat-value" id="totalRoads">0</div>
+                    <div class="stat-label">Total Roads</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-value" id="criticalRoads">0</div>
+                    <div class="stat-label">Critical</div>
+                </div>
+            </div>
+            
+            <div class="stats-grid">
+                <div class="stat-box">
+                    <div class="stat-value" id="totalCost">₹0</div>
+                    <div class="stat-label">Est. Cost</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-value" id="totalTime">0h</div>
+                    <div class="stat-label">Savings/Yr</div>
+                </div>
+            </div>
+            
+            <h3 style="margin-top: 20px; margin-bottom: 10px; font-size: 13px; color: #cbd5e1;">Roads</h3>
+            <div class="roads-list" id="roadsList">
+                <p style="color: #94a3b8; font-size: 12px; text-align: center; padding: 20px;">Select filters to see roads</p>
+            </div>
+        </div>
+        
+        <!-- Main Content -->
+        <div class="main-content">
+            <div id="map"></div>
+            
+            <!-- Results Panel -->
+            <div class="results-panel">
+                <h3>📊 Analysis Results</h3>
+                <div id="resultsContainer">
+                    <div class="loading">
+                        <p>Select a road or area to view analysis</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Scripts -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
+    
+    <script>
+        // Road data from app.js
+        const ROADS_DATABASE = {
+            delhi: [
+                { id: 1, name: 'NH-1 (Kashmere Gate-Panipat)', type: 'highway', priority: 'critical', cost: 180, timeSavings: 45, condition: 'good', lanes: 6 },
+                { id: 2, name: 'NH-8 (Dhaula Kuan)', type: 'highway', priority: 'high', cost: 210, timeSavings: 38, condition: 'excellent', lanes: 4 },
+                { id: 3, name: 'Ring Road', type: 'primary', priority: 'critical', cost: 140, timeSavings: 60, condition: 'fair', lanes: 4 }
+            ],
+            gurgaon: [
+                { id: 4, name: 'NH-8 Extended', type: 'highway', priority: 'critical', cost: 190, timeSavings: 42, condition: 'excellent', lanes: 4 },
+                { id: 5, name: 'Delhi-Gurgaon Exp', type: 'highway', priority: 'high', cost: 250, timeSavings: 55, condition: 'excellent', lanes: 6 }
+            ],
+            bangalore: [
+                { id: 6, name: 'NH-44 Whitefield', type: 'highway', priority: 'critical', cost: 200, timeSavings: 50, condition: 'good', lanes: 4 }
+            ]
+        };
+        
+        let map = null;
+        let allRoads = [];
+        let filteredRoads = [];
+        
+        function initMap() {
+            map = L.map('map').setView([20.5937, 78.9629], 5);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap',
+                maxZoom: 19
+            }).addTo(map);
+        }
+        
+        function loadRoads() {
+            allRoads = [];
+            for (let area in ROADS_DATABASE) {
+                allRoads.push(...ROADS_DATABASE[area]);
+            }
+            updateStats();
+            renderRoads(allRoads);
+        }
+        
+        function filterRoads() {
+            const search = document.getElementById('searchInput').value.toLowerCase();
+            const area = document.getElementById('areaFilter').value;
+            const priority = document.getElementById('priorityFilter').value;
+            const type = document.getElementById('typeFilter').value;
+            
+            filteredRoads = allRoads.filter(road => {
+                const matchSearch = road.name.toLowerCase().includes(search) || search === '';
+                const matchArea = !area || (area === 'delhi' && road.id <= 3) || (area === 'gurgaon' && road.id >= 4 && road.id <= 5) || (area === 'bangalore' && road.id === 6);
+                const matchPriority = !priority || road.priority === priority;
+                const matchType = !type || road.type === type;
+                
+                return matchSearch && matchArea && matchPriority && matchType;
+            });
+            
+            renderRoads(filteredRoads);
+        }
+        
+        function renderRoads(roads) {
+            const container = document.getElementById('roadsList');
+            if (roads.length === 0) {
+                container.innerHTML = '<p style="color: #94a3b8; font-size: 12px; text-align: center; padding: 20px;">No roads found</p>';
+                return;
+            }
+            
+            container.innerHTML = roads.map(road => `
+                <div class="road-item" onclick="showRoadDetails(${road.id})">
+                    <div class="road-name">${road.name}</div>
+                    <div class="road-details">
+                        <span style="background: ${road.priority === 'critical' ? '#dc2626' : road.priority === 'high' ? '#f97316' : '#22c55e'}; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px;">${road.priority.toUpperCase()}</span>
+                        <span style="margin-left: 8px; color: #94a3b8;">₹${road.cost}Cr | ${road.timeSavings}min saved</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        function updateStats() {
+            const critical = allRoads.filter(r => r.priority === 'critical').length;
+            const totalCost = allRoads.reduce((sum, r) => sum + r.cost, 0);
+            const totalTime = allRoads.reduce((sum, r) => sum + r.timeSavings, 0);
+            
+            document.getElementById('totalRoads').textContent = allRoads.length;
+            document.getElementById('criticalRoads').textContent = critical;
+            document.getElementById('totalCost').textContent = '₹' + totalCost + 'Cr';
+            document.getElementById('totalTime').textContent = (totalTime * 260 / 60).toFixed(0) + 'h';
+        }
+        
+        function showRoadDetails(roadId) {
+            const road = allRoads.find(r => r.id === roadId);
+            if (!road) return;
+            
+            const timePerDayMinutes = road.timeSavings;
+            const tripsPerDay = 500;
+            const workingDaysPerYear = 260;
+            const dailySavingsMinutes = timePerDayMinutes * tripsPerDay;
+            const annualSavingsHours = (dailySavingsMinutes * workingDaysPerYear) / 60;
+            
+            const costBreakdown = {
+                construction: road.cost * 0.75,
+                land: road.cost * 0.1,
+                engineering: road.cost * 0.1,
+                contingency: road.cost * 0.05
+            };
+            
+            const html = `
+                <div class="result-card">
+                    <div class="result-title">📍 ${road.name}</div>
+                    <div class="result-stat">
+                        <span class="result-stat-label">Type</span>
+                        <span class="result-stat-value">${road.type.toUpperCase()}</span>
+                    </div>
+                    <div class="result-stat">
+                        <span class="result-stat-label">Priority</span>
+                        <span class="result-stat-value">${road.priority.toUpperCase()}</span>
+                    </div>
+                    <div class="result-stat">
+                        <span class="result-stat-label">Current Condition</span>
+                        <span class="result-stat-value">${road.condition}</span>
+                    </div>
+                    <div class="badges">
+                        <span class="badge ${road.priority === 'critical' ? 'critical' : road.priority === 'high' ? 'high' : ''}">
+                            ${road.lanes} lanes
+                        </span>
+                        <span class="badge">Immediate action needed</span>
+                    </div>
+                </div>
+                
+                <div class="result-card">
+                    <div class="result-title">💰 Cost Analysis</div>
+                    <div class="result-stat">
+                        <span class="result-stat-label">Total Investment</span>
+                        <span class="result-stat-value">₹${road.cost}Cr</span>
+                    </div>
+                    <div style="font-size: 11px; margin-top: 8px; color: #94a3b8;">
+                        • Construction: ₹${costBreakdown.construction.toFixed(1)}Cr<br>
+                        • Land Acquisition: ₹${costBreakdown.land.toFixed(1)}Cr<br>
+                        • Engineering: ₹${costBreakdown.engineering.toFixed(1)}Cr<br>
+                        • Contingency: ₹${costBreakdown.contingency.toFixed(1)}Cr
+                    </div>
+                </div>
+                
+                <div class="result-card">
+                    <div class="result-title">⏱️ Time Savings</div>
+                    <div class="result-stat">
+                        <span class="result-stat-label">Per Trip</span>
+                        <span class="result-stat-value">${road.timeSavings} min</span>
+                    </div>
+                    <div class="result-stat">
+                        <span class="result-stat-label">Daily (500 vehicles)</span>
+                        <span class="result-stat-value">${(dailySavingsMinutes / 60).toFixed(1)}h</span>
+                    </div>
+                    <div class="result-stat">
+                        <span class="result-stat-label">Annual Savings</span>
+                        <span class="result-stat-value">${annualSavingsHours.toFixed(0)}h</span>
+                    </div>
+                </div>
+                
+                <div class="result-card">
+                    <div class="result-title">✅ Recommended Actions</div>
+                    <div style="font-size: 11px; color: #94a3b8; line-height: 1.6; margin-top: 8px;">
+                        1. <strong>Immediate:</strong> Conduct detailed survey and land acquisition<br>
+                        2. <strong>Month 1-2:</strong> Complete engineering design & environmental clearance<br>
+                        3. <strong>Month 3:</strong> Start construction phase<br>
+                        4. <strong>Timeline:</strong> ~${Math.ceil(road.cost / 30)} months to completion
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('resultsContainer').innerHTML = html;
+        }
+        
+        // Event listeners
+        document.getElementById('searchInput').addEventListener('keyup', filterRoads);
+        document.getElementById('areaFilter').addEventListener('change', filterRoads);
+        document.getElementById('priorityFilter').addEventListener('change', filterRoads);
+        document.getElementById('typeFilter').addEventListener('change', filterRoads);
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            initMap();
+            loadRoads();
+        });
+    </script>
+</body>
+</html>

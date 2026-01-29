@@ -1,0 +1,1991 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>InfraSense AI - Analysis Dashboard</title>
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css" />
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+    
+    <!-- html2canvas for image export -->
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+    
+    <!-- jsPDF for PDF export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #f8f9fa;
+            color: #1a1a1a;
+            overflow-x: hidden;
+        }
+
+        /* Navigation Bar - Match Dashboard */
+        .navbar {
+            background: white;
+            border-bottom: 1px solid #e1e4e8;
+            padding: 0 24px;
+            height: 64px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        }
+
+        .navbar-left {
+            display: flex;
+            align-items: center;
+            gap: 32px;
+        }
+
+        .navbar-logo {
+            font-size: 20px;
+            font-weight: 700;
+            color: #2563eb;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .navbar-logo span {
+            font-size: 24px;
+        }
+
+        .navbar-nav {
+            display: flex;
+            gap: 2px;
+        }
+
+        .navbar-nav a {
+            padding: 8px 12px;
+            text-decoration: none;
+            color: #666;
+            font-size: 14px;
+            font-weight: 500;
+            border-radius: 6px;
+            transition: all 0.2s;
+        }
+
+        .navbar-nav a:hover {
+            background: #f0f0f0;
+            color: #333;
+        }
+
+        .navbar-nav a.active {
+            color: #2563eb;
+            background: #eff6ff;
+        }
+
+        .navbar-right {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .btn-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 6px;
+            border: none;
+            background: #f0f0f0;
+            color: #666;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn-icon:hover {
+            background: #e0e0e0;
+            color: #333;
+        }
+
+        /* Main Container */
+        .container {
+            display: flex;
+            gap: 16px;
+            padding: 16px;
+            max-width: 1600px;
+            margin: 0 auto;
+            height: calc(100vh - 80px);
+        }
+
+        /* Map Section (60%) */
+        .map-section {
+            flex: 0 0 60%;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .map-container {
+            flex: 1;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid #e1e4e8;
+            position: relative;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        #map {
+            width: 100%;
+            height: 100%;
+        }
+
+        .map-controls {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            display: flex;
+            gap: 8px;
+            z-index: 50;
+        }
+
+        .map-btn {
+            width: 40px;
+            height: 40px;
+            border: none;
+            background: white;
+            color: #2563eb;
+            cursor: pointer;
+            border-radius: 6px;
+            font-size: 16px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .map-btn:hover {
+            background: #f0f0f0;
+            transform: translateY(-2px);
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+        }
+
+        .map-legend {
+            position: absolute;
+            bottom: 12px;
+            left: 12px;
+            background: white;
+            padding: 12px 16px;
+            border-radius: 6px;
+            font-size: 12px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            z-index: 50;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin: 6px 0;
+        }
+
+        .legend-color {
+            width: 12px;
+            height: 12px;
+            border-radius: 2px;
+        }
+
+        /* Control Panel (40%) */
+        .control-section {
+            flex: 0 0 40%;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            overflow-y: auto;
+        }
+
+        .panel {
+            background: white;
+            border-radius: 8px;
+            border: 1px solid #e1e4e8;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .panel-header {
+            padding: 12px 16px;
+            border-bottom: 1px solid #e1e4e8;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            user-select: none;
+            background: #f8f9fa;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .panel-header:hover {
+            background: #f0f0f0;
+        }
+
+        .panel-content {
+            padding: 16px;
+        }
+
+        .panel-content.hidden {
+            display: none;
+        }
+
+        .toggle-icon {
+            transition: transform 0.2s;
+            font-size: 12px;
+            color: #666;
+        }
+
+        .toggle-icon.collapsed {
+            transform: rotate(-90deg);
+        }
+
+        /* Form Controls */
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-group:last-child {
+            margin-bottom: 0;
+        }
+
+        label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 6px;
+        }
+
+        select, input[type="date"], input[type="time"] {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 13px;
+            font-family: inherit;
+            transition: border-color 0.2s;
+        }
+
+        select:focus, input[type="date"]:focus, input[type="time"]:focus {
+            outline: none;
+            border-color: #2563eb;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        }
+
+        /* Preset Buttons */
+        .preset-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .preset-btn {
+            padding: 8px 12px;
+            border: 1px solid #d1d5db;
+            background: white;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .preset-btn:hover {
+            border-color: #2563eb;
+            color: #2563eb;
+        }
+
+        .preset-btn.active {
+            background: #2563eb;
+            color: white;
+            border-color: #2563eb;
+        }
+
+        /* Filters */
+        .filter-group {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            margin-bottom: 12px;
+        }
+
+        .filter-chip {
+            padding: 6px 12px;
+            border: 1px solid #d1d5db;
+            background: white;
+            border-radius: 20px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .filter-chip:hover {
+            border-color: #2563eb;
+            background: #eff6ff;
+        }
+
+        .filter-chip.active {
+            background: #2563eb;
+            color: white;
+            border-color: #2563eb;
+        }
+
+        .filter-chip .remove {
+            cursor: pointer;
+            opacity: 0.7;
+        }
+
+        .filter-chip .remove:hover {
+            opacity: 1;
+        }
+
+        /* Slider */
+        .slider-container {
+            margin-bottom: 12px;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: #e0e0e0;
+            outline: none;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #2563eb;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 1px 3px rgba(37, 99, 235, 0.3);
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #2563eb;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s;
+            box-shadow: 0 1px 3px rgba(37, 99, 235, 0.3);
+        }
+
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+        }
+
+        .slider-labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            color: #666;
+            margin-top: 4px;
+        }
+
+        /* Buttons */
+        .btn {
+            padding: 10px 16px;
+            border: none;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            width: 100%;
+        }
+
+        .btn-primary {
+            background: #2563eb;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #1d4ed8;
+            transform: translateY(-2px);
+            box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
+        }
+
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+
+        .btn-secondary {
+            background: #f0f0f0;
+            color: #333;
+            border: 1px solid #d1d5db;
+        }
+
+        .btn-secondary:hover {
+            background: #e8e8e8;
+        }
+
+        .btn-small {
+            padding: 6px 12px;
+            font-size: 12px;
+            width: auto;
+        }
+
+        .button-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        /* Results Section */
+        .results-section {
+            background: white;
+            border-radius: 8px;
+            border: 1px solid #e1e4e8;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            margin-top: 0;
+        }
+
+        .tabs {
+            display: flex;
+            border-bottom: 1px solid #e1e4e8;
+            background: #f8f9fa;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 12px 16px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            color: #666;
+            transition: all 0.2s;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -1px;
+        }
+
+        .tab:hover {
+            color: #333;
+        }
+
+        .tab.active {
+            color: #2563eb;
+            border-bottom-color: #2563eb;
+        }
+
+        .tab-content {
+            display: none;
+            padding: 16px;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Suggestion Cards */
+        .suggestions-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .suggestion-card {
+            border: 1px solid #e1e4e8;
+            border-radius: 6px;
+            padding: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .suggestion-card:hover {
+            border-color: #2563eb;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        }
+
+        .suggestion-card.critical {
+            border-left: 4px solid #dc2626;
+        }
+
+        .suggestion-card.high {
+            border-left: 4px solid #f59e0b;
+        }
+
+        .suggestion-card.medium {
+            border-left: 4px solid #3b82f6;
+        }
+
+        .suggestion-card.low {
+            border-left: 4px solid #10b981;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 8px;
+        }
+
+        .card-title {
+            font-weight: 600;
+            font-size: 13px;
+            color: #333;
+        }
+
+        .card-badge {
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            color: white;
+        }
+
+        .badge-critical {
+            background: #dc2626;
+        }
+
+        .badge-high {
+            background: #f59e0b;
+        }
+
+        .badge-medium {
+            background: #3b82f6;
+        }
+
+        .badge-low {
+            background: #10b981;
+        }
+
+        .card-details {
+            font-size: 12px;
+            color: #666;
+            line-height: 1.4;
+            margin-bottom: 8px;
+        }
+
+        .card-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-top: 8px;
+        }
+
+        .card-stat {
+            font-size: 12px;
+        }
+
+        .card-stat-label {
+            color: #999;
+            font-size: 11px;
+        }
+
+        .card-stat-value {
+            font-weight: 600;
+            color: #333;
+            font-size: 13px;
+        }
+
+        /* Statistics Table */
+        .stats-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+        }
+
+        .stats-table th {
+            background: #f0f0f0;
+            padding: 10px 12px;
+            text-align: left;
+            font-weight: 600;
+            color: #333;
+            border-bottom: 1px solid #e1e4e8;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .stats-table th:hover {
+            background: #e8e8e8;
+        }
+
+        .stats-table td {
+            padding: 10px 12px;
+            border-bottom: 1px solid #f0f0f0;
+            color: #666;
+        }
+
+        .stats-table tr:hover {
+            background: #f8f9fa;
+        }
+
+        .stats-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .stat-number {
+            font-weight: 600;
+            color: #333;
+        }
+
+        /* Report Section */
+        .report-section {
+            background: white;
+            border-radius: 8px;
+            border: 1px solid #e1e4e8;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            padding: 16px;
+            margin-top: 12px;
+        }
+
+        .report-header {
+            font-weight: 600;
+            font-size: 14px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .report-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 10px;
+        }
+
+        .progress-section {
+            display: none;
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid #e1e4e8;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: #e0e0e0;
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 8px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #2563eb, #1d4ed8);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .progress-text {
+            font-size: 12px;
+            color: #666;
+            margin-top: 6px;
+        }
+
+        /* Responsive */
+        @media (max-width: 1200px) {
+            .container {
+                flex-direction: column;
+                height: auto;
+            }
+
+            .map-section {
+                flex: 1;
+                min-height: 400px;
+            }
+
+            .control-section {
+                flex: 1;
+                max-height: 300px;
+            }
+
+            .report-buttons {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .navbar {
+                padding: 0 16px;
+            }
+
+            .navbar-nav {
+                display: none;
+            }
+
+            .preset-buttons {
+                grid-template-columns: 1fr;
+            }
+
+            .button-group {
+                grid-template-columns: 1fr;
+            }
+
+            .card-row {
+                grid-template-columns: 1fr;
+            }
+
+            .report-buttons {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Loading State */
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            color: #2563eb;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .spinner {
+            width: 16px;
+            height: 16px;
+            border: 2px solid #e0e0e0;
+            border-top-color: #2563eb;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Export Section Styling */
+        .export-btn {
+            width: 100%;
+            margin: 5px 0;
+            padding: 10px;
+            background: white;
+            border: 2px solid #3b82f6;
+            border-radius: 6px;
+            color: #3b82f6;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 14px;
+        }
+
+        .export-btn:hover {
+            background: #3b82f6;
+            color: white;
+            transform: translateY(-2px);
+        }
+
+        .export-btn:active {
+            transform: translateY(0);
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="navbar-left">
+            <a href="/" class="navbar-logo">
+                <span>🏗️</span>
+                <div>InfraSense AI</div>
+            </a>
+            <div class="navbar-nav">
+                <a href="/">Dashboard</a>
+                <a href="/analysis" class="active">Analysis</a>
+            </div>
+        </div>
+        <div class="navbar-right">
+            <button class="btn-icon" title="Help" onclick="alert('📖 Help & Documentation - Coming soon!')">
+                <i class="fas fa-question-circle"></i>
+            </button>
+            <button class="btn-icon" title="Settings" onclick="alert('⚙️ Settings - Coming soon!')">
+                <i class="fas fa-cog"></i>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Main Container -->
+    <div class="container">
+        <!-- MAP SECTION (60%) -->
+        <div class="map-section">
+            <div class="map-container">
+                <div id="map"></div>
+                
+                <!-- Map Controls -->
+                <div class="map-controls">
+                    <button class="map-btn" id="zoomInBtn" title="Zoom In">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                    <button class="map-btn" id="zoomOutBtn" title="Zoom Out">
+                        <i class="fas fa-minus"></i>
+                    </button>
+                    <button class="map-btn" id="fullscreenBtn" title="Fullscreen">
+                        <i class="fas fa-expand"></i>
+                    </button>
+                </div>
+
+                <!-- Map Legend -->
+                <div class="map-legend">
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #10b981;"></div>
+                        <span>Low (0-20%)</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #3b82f6;"></div>
+                        <span>Medium (20-50%)</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #f59e0b;"></div>
+                        <span>High (50-80%)</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #dc2626;"></div>
+                        <span>Critical (80%+)</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- CONTROL PANEL (40%) -->
+        <div class="control-section">
+            <!-- Time Frame Panel -->
+            <div class="panel">
+                <div class="panel-header" onclick="togglePanel(this)">
+                    <span>⏱️ Time Frame</span>
+                    <span class="toggle-icon">▼</span>
+                </div>
+                <div class="panel-content">
+                    <div class="form-group">
+                        <label>Select Timeframe</label>
+                        <select id="timeframeSelect">
+                            <option value="realtime">Real-time</option>
+                            <option value="today">Today</option>
+                            <option value="week">This Week</option>
+                            <option value="month" selected>Last Month</option>
+                            <option value="custom">Custom Range</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group" id="customDateGroup" style="display: none;">
+                        <label>Date Range</label>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                            <input type="date" id="startDate">
+                            <input type="date" id="endDate">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Rush Hour Presets</label>
+                        <div class="preset-buttons">
+                            <button class="preset-btn" data-preset="morning">7-9 AM</button>
+                            <button class="preset-btn" data-preset="afternoon">12-2 PM</button>
+                            <button class="preset-btn" data-preset="evening" style="grid-column: 1;">4-7 PM</button>
+                            <button class="preset-btn" data-preset="night" style="grid-column: 2;">9-11 PM</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Filters Panel -->
+            <div class="panel">
+                <div class="panel-header" onclick="togglePanel(this)">
+                    <span>🔍 Filters</span>
+                    <span class="toggle-icon">▼</span>
+                </div>
+                <div class="panel-content">
+                    <div class="form-group">
+                        <label>Road Type</label>
+                        <div class="filter-group" id="roadTypeFilters">
+                            <button class="filter-chip active" data-type="highway">Highway</button>
+                            <button class="filter-chip active" data-type="arterial">Arterial</button>
+                            <button class="filter-chip active" data-type="local">Local</button>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Congestion Level: <strong id="congestionValue">50%</strong></label>
+                        <div class="slider-container">
+                            <input type="range" id="congestionSlider" min="0" max="100" value="50">
+                            <div class="slider-labels">
+                                <span>Low</span>
+                                <span>Critical</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Show/Hide Overlays</label>
+                        <div class="filter-group">
+                            <button class="filter-chip active" data-overlay="accidents">Accidents</button>
+                            <button class="filter-chip active" data-overlay="construction">Construction</button>
+                            <button class="filter-chip active" data-overlay="signals">Signals</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Analysis Buttons Panel -->
+            <div class="panel">
+                <div class="panel-header" onclick="togglePanel(this)">
+                    <span>⚙️ Analysis</span>
+                    <span class="toggle-icon">▼</span>
+                </div>
+                <div class="panel-content">
+                    <button class="btn btn-primary" id="runAnalysisBtn">
+                        <i class="fas fa-play"></i> Run Analysis
+                    </button>
+                    <button class="btn btn-secondary btn-small" id="compareBtn" style="margin-top: 8px; width: 100%;">
+                        <i class="fas fa-code-branch"></i> Compare Scenarios
+                    </button>
+                    <button class="btn btn-secondary btn-small" id="resetBtn" style="margin-top: 8px; width: 100%;">
+                        <i class="fas fa-redo"></i> Reset View
+                    </button>
+
+                    <!-- Export Section -->
+                    <div class="export-section" style="margin-top: 20px; padding: 15px; background: #f8fafc; border-radius: 8px;">
+                        <h4 style="margin: 0 0 10px 0; color: #1e40af; font-size: 13px;">📤 Export Options</h4>
+                        
+                        <div class="export-buttons">
+                            <button id="export-pdf-btn" class="export-btn">
+                                📄 Export as PDF
+                            </button>
+                            
+                            <button id="export-json-btn" class="export-btn">
+                                💾 Export as JSON
+                            </button>
+                            
+                            <button id="export-csv-btn" class="export-btn">
+                                📊 Export as CSV
+                            </button>
+                            
+                            <button id="export-image-btn" class="export-btn">
+                                🖼️ Export as Image
+                            </button>
+                            
+                            <button id="export-share-btn" class="export-btn">
+                                🔗 Share Analysis
+                            </button>
+                        </div>
+                        
+                        <div id="export-status" style="margin-top: 10px; font-size: 12px; color: #64748b;">
+                            Ready to export
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- RESULTS SECTION (Full Width Below) -->
+    <div style="padding: 16px; max-width: 1600px; margin: 0 auto;">
+        <div class="results-section">
+            <div class="tabs">
+                <button class="tab active" data-tab="suggestions">
+                    <i class="fas fa-lightbulb"></i> Suggestions
+                </button>
+                <button class="tab" data-tab="statistics">
+                    <i class="fas fa-chart-bar"></i> Statistics
+                </button>
+                <button class="tab" data-tab="details">
+                    <i class="fas fa-list"></i> Road Details
+                </button>
+            </div>
+
+            <!-- Tab 1: Suggestions -->
+            <div class="tab-content active" data-tab="suggestions">
+                <div class="suggestions-list" id="suggestionsList">
+                    <p style="text-align: center; color: #999; padding: 32px 0;">
+                        <i class="fas fa-info-circle"></i> Run analysis to see suggestions
+                    </p>
+                </div>
+            </div>
+
+            <!-- Tab 2: Statistics -->
+            <div class="tab-content" data-tab="statistics">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px;">
+                    <div style="background: #f8f9fa; padding: 16px; border-radius: 6px; text-align: center;">
+                        <div style="font-size: 28px; font-weight: 700; color: #2563eb;" id="avgCongestion">—%</div>
+                        <div style="font-size: 12px; color: #666; margin-top: 4px;">Average Congestion</div>
+                    </div>
+                    <div style="background: #f8f9fa; padding: 16px; border-radius: 6px; text-align: center;">
+                        <div style="font-size: 28px; font-weight: 700; color: #f59e0b;" id="worstRoads">—</div>
+                        <div style="font-size: 12px; color: #666; margin-top: 4px;">Worst Roads</div>
+                    </div>
+                    <div style="background: #f8f9fa; padding: 16px; border-radius: 6px; text-align: center;">
+                        <div style="font-size: 28px; font-weight: 700; color: #10b981;" id="improvement">—%</div>
+                        <div style="font-size: 12px; color: #666; margin-top: 4px;">Improvement Potential</div>
+                    </div>
+                    <div style="background: #f8f9fa; padding: 16px; border-radius: 6px; text-align: center;">
+                        <div style="font-size: 28px; font-weight: 700; color: #3b82f6;" id="totalCost">—</div>
+                        <div style="font-size: 12px; color: #666; margin-top: 4px;">Est. Investment</div>
+                    </div>
+                </div>
+                <table class="stats-table" id="statsTable">
+                    <thead>
+                        <tr>
+                            <th onclick="sortTable(0)">Road Name</th>
+                            <th onclick="sortTable(1)">Type</th>
+                            <th onclick="sortTable(2)">Congestion</th>
+                            <th onclick="sortTable(3)">Length (km)</th>
+                            <th onclick="sortTable(4)">Lanes</th>
+                        </tr>
+                    </thead>
+                    <tbody id="statsTableBody">
+                        <tr>
+                            <td colspan="5" style="text-align: center; color: #999; padding: 32px 0;">
+                                <i class="fas fa-info-circle"></i> Run analysis to view statistics
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Tab 3: Road Details -->
+            <div class="tab-content" data-tab="details">
+                <table class="stats-table" id="detailsTable">
+                    <thead>
+                        <tr>
+                            <th onclick="sortTable(5)">Road Name</th>
+                            <th onclick="sortTable(6)">City</th>
+                            <th onclick="sortTable(7)">Status</th>
+                            <th onclick="sortTable(8)">Priority</th>
+                            <th onclick="sortTable(9)">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="detailsTableBody">
+                        <tr>
+                            <td colspan="5" style="text-align: center; color: #999; padding: 32px 0;">
+                                <i class="fas fa-info-circle"></i> Run analysis to view road details
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- REPORT SECTION -->
+        <div class="report-section">
+            <div class="report-header">
+                <i class="fas fa-file-alt"></i> Generate Report
+            </div>
+            <div class="report-buttons">
+                <button class="btn btn-primary btn-small" id="generatePdfBtn">
+                    <i class="fas fa-file-pdf"></i> PDF Report
+                </button>
+                <button class="btn btn-secondary btn-small" id="exportJsonBtn">
+                    <i class="fas fa-file-code"></i> Export JSON
+                </button>
+                <button class="btn btn-secondary btn-small" id="shareBtn">
+                    <i class="fas fa-share-alt"></i> Share Analysis
+                </button>
+            </div>
+            <div class="progress-section" id="progressSection">
+                <div style="font-size: 13px; color: #666; margin-bottom: 8px;" id="progressText">Generating...</div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
+    
+    <script>
+        // ============== CONFIGURATION ==============
+        const API_BASE = '/api';
+        const DEFAULT_ZOOM = 12;
+        const DEFAULT_CENTER = [28.6139, 77.2090]; // Delhi
+
+        // ============== INDIAN CITIES DATA ==============
+        const CITIES_DATA = {
+            delhi: {
+                name: 'Delhi',
+                center: [28.7041, 77.1025],
+                zoom: 11,
+                roads: [
+                    { id: 1, name: 'NH-1 (Kashmere Gate-Panipat)', lat: 28.65, lng: 77.10, type: 'highway', priority: 'critical', congestion: 85, construction: false, accidents: 2 },
+                    { id: 2, name: 'NH-8 (Gurgaon Road)', lat: 28.60, lng: 77.15, type: 'highway', priority: 'high', congestion: 72, construction: true, accidents: 1 },
+                    { id: 3, name: 'Ring Road', lat: 28.70, lng: 77.12, type: 'primary', priority: 'critical', congestion: 88, construction: false, accidents: 3 },
+                    { id: 4, name: 'Connaught Place Road', lat: 28.63, lng: 77.19, type: 'primary', priority: 'high', congestion: 65, construction: false, accidents: 0 },
+                    { id: 5, name: 'ITO-Pragati Maidan', lat: 28.61, lng: 77.25, type: 'primary', priority: 'medium', congestion: 45, construction: false, accidents: 1 },
+                    { id: 6, name: 'Outer Ring Road', lat: 28.75, lng: 77.08, type: 'primary', priority: 'high', congestion: 68, construction: true, accidents: 2 }
+                ]
+            },
+            gurgaon: {
+                name: 'Gurgaon',
+                center: [28.4595, 77.0266],
+                zoom: 12,
+                roads: [
+                    { id: 7, name: 'NH-8 (Sohna Road)', lat: 28.45, lng: 77.02, type: 'highway', priority: 'critical', congestion: 82, construction: true, accidents: 1 },
+                    { id: 8, name: 'Delhi-Gurgaon Expressway', lat: 28.50, lng: 77.00, type: 'highway', priority: 'high', congestion: 75, construction: false, accidents: 2 },
+                    { id: 9, name: 'MG Road', lat: 28.46, lng: 77.03, type: 'primary', priority: 'medium', congestion: 55, construction: false, accidents: 0 }
+                ]
+            },
+            noida: {
+                name: 'Noida',
+                center: [28.5921, 77.3869],
+                zoom: 12,
+                roads: [
+                    { id: 12, name: 'NH-24 (Delhi-Agra)', lat: 28.60, lng: 77.38, type: 'highway', priority: 'critical', congestion: 80, construction: false, accidents: 2 },
+                    { id: 13, name: 'DND Expressway', lat: 28.58, lng: 77.39, type: 'highway', priority: 'high', congestion: 70, construction: true, accidents: 1 },
+                    { id: 14, name: 'Main Road (Sector 18-62)', lat: 28.59, lng: 77.37, type: 'primary', priority: 'medium', congestion: 52, construction: false, accidents: 0 }
+                ]
+            }
+        };
+
+        // ============== STATE ==============
+        let map = null;
+        let drawnItems = null;
+        let analysisData = null;
+        let roadMarkers = [];
+        let allRoads = [];
+        let selectedRoad = null;
+
+        let currentFilters = {
+            roadType: ['highway', 'arterial', 'primary'],
+            congestion: 100,
+            overlays: ['accidents', 'construction', 'signals'],
+            timeframe: 'month',
+            city: 'delhi'
+        };
+
+        // ============== MAP INITIALIZATION ==============
+        function initMap() {
+            map = L.map('map').setView(DEFAULT_CENTER, DEFAULT_ZOOM);
+
+            // Tile layers
+            const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap',
+                maxZoom: 19
+            });
+
+            const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+                attribution: '© Esri',
+                maxZoom: 18
+            });
+
+            osmLayer.addTo(map);
+
+            // Layer control
+            L.control.layers({
+                'Street Map': osmLayer,
+                'Satellite': satelliteLayer
+            }).addTo(map);
+
+            // Initialize drawing tools
+            drawnItems = new L.FeatureGroup();
+            map.addLayer(drawnItems);
+
+            const drawControl = new L.Control.Draw({
+                draw: {
+                    polygon: true,
+                    rectangle: true,
+                    circle: false,
+                    marker: false,
+                    polyline: false
+                },
+                edit: {
+                    featureGroup: drawnItems
+                }
+            });
+            map.addControl(drawControl);
+
+            // Draw events
+            map.on('draw:created', function(e) {
+                const layer = e.layer;
+                drawnItems.addLayer(layer);
+                console.log('🎨 Area selected for analysis');
+            });
+
+            // Map controls
+            document.getElementById('zoomInBtn').onclick = () => map.zoomIn();
+            document.getElementById('zoomOutBtn').onclick = () => map.zoomOut();
+            document.getElementById('fullscreenBtn').onclick = () => {
+                const elem = document.querySelector('.map-container');
+                if (!document.fullscreenElement) {
+                    elem.requestFullscreen().catch(err => console.log(err));
+                } else {
+                    document.exitFullscreen();
+                }
+            };
+
+            // Load initial roads
+            loadRoadsForCity('delhi');
+            updateMapDisplay();
+        }
+
+        // ============== LOAD ROADS FOR CITY ==============
+        function loadRoadsForCity(city) {
+            clearRoadMarkers();
+            allRoads = [];
+
+            const cityData = CITIES_DATA[city] || CITIES_DATA.delhi;
+            allRoads = cityData.roads;
+
+            // Center map on city
+            const cityCenter = cityData.center;
+            map.setView(cityCenter, cityData.zoom);
+
+            addRoadMarkers();
+            updateStatistics();
+        }
+
+        // ============== ADD ROAD MARKERS ==============
+        function addRoadMarkers() {
+            roadMarkers.forEach(m => map.removeLayer(m));
+            roadMarkers = [];
+
+            allRoads.forEach(road => {
+                if (!shouldShowRoad(road)) return;
+
+                // Determine color based on priority/congestion
+                let color = '#10b981'; // green - low
+                if (road.congestion >= 80) color = '#dc2626'; // red - critical
+                else if (road.congestion >= 50) color = '#f59e0b'; // orange - high
+                else if (road.congestion >= 20) color = '#3b82f6'; // blue - medium
+
+                // Create marker
+                const marker = L.circleMarker([road.lat, road.lng], {
+                    radius: 8,
+                    fillColor: color,
+                    color: '#fff',
+                    weight: 2,
+                    opacity: 1,
+                    fillOpacity: 0.8
+                });
+
+                // Add popup with road info
+                marker.bindPopup(`
+                    <div style="font-size: 12px; min-width: 200px;">
+                        <strong>${road.name}</strong><br>
+                        <div style="margin-top: 8px;">
+                            <span style="color: #666;">Type:</span> ${road.type}<br>
+                            <span style="color: #666;">Priority:</span> <span style="color: ${color}; font-weight: 600;">${road.priority.toUpperCase()}</span><br>
+                            <span style="color: #666;">Congestion:</span> <strong>${road.congestion}%</strong><br>
+                            ${road.construction ? '<span style="color: #f59e0b;">🚧 Construction</span><br>' : ''}
+                            ${road.accidents > 0 ? `<span style="color: #dc2626;">⚠️ ${road.accidents} Accidents</span><br>` : ''}
+                        </div>
+                        <button onclick="selectRoad(${road.id})" style="margin-top: 8px; padding: 6px 12px; background: #2563eb; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px;">View Details</button>
+                    </div>
+                `);
+
+                // Click handler
+                marker.on('click', () => {
+                    selectRoad(road.id);
+                    marker.openPopup();
+                });
+
+                marker.addTo(map);
+                roadMarkers.push(marker);
+            });
+        }
+
+        // ============== SHOULD SHOW ROAD ==============
+        function shouldShowRoad(road) {
+            // Check road type filter
+            if (!currentFilters.roadType.includes(road.type)) return false;
+
+            // Check congestion filter
+            if (road.congestion > currentFilters.congestion) return false;
+
+            // Check overlays
+            if (road.construction && !currentFilters.overlays.includes('construction')) return false;
+            if (road.accidents > 0 && !currentFilters.overlays.includes('accidents')) return false;
+
+            return true;
+        }
+
+        // ============== SELECT ROAD ==============
+        function selectRoad(roadId) {
+            selectedRoad = allRoads.find(r => r.id === roadId);
+            if (!selectedRoad) return;
+
+            // Display in details
+            const drawer = document.getElementById('detailDrawer');
+            drawer.style.display = 'block';
+
+            document.getElementById('roadName').textContent = selectedRoad.name;
+            document.getElementById('isiValue').textContent = selectedRoad.congestion + '%';
+            document.getElementById('isiBar').style.width = selectedRoad.congestion + '%';
+            document.getElementById('recPriority').textContent = selectedRoad.priority.toUpperCase();
+
+            // Estimate cost based on priority
+            const costMap = { critical: '₹50 Cr', high: '₹35 Cr', medium: '₹20 Cr', low: '₹10 Cr' };
+            document.getElementById('recCost').textContent = costMap[selectedRoad.priority] || '₹0';
+
+            document.getElementById('recRationale').textContent = 
+                `Road ${selectedRoad.name} has ${selectedRoad.congestion}% congestion. ` +
+                (selectedRoad.construction ? 'Currently under construction. ' : '') +
+                (selectedRoad.accidents > 0 ? `${selectedRoad.accidents} accidents reported. ` : '') +
+                'Recommend priority upgrade.';
+
+            console.log('📍 Road selected:', selectedRoad.name);
+        }
+
+        // ============== CLEAR ROAD MARKERS ==============
+        function clearRoadMarkers() {
+            roadMarkers.forEach(m => map.removeLayer(m));
+            roadMarkers = [];
+        }
+
+        // ============== UPDATE MAP DISPLAY ==============
+        function updateMapDisplay() {
+            addRoadMarkers();
+            updateStatistics();
+        }
+
+        // ============== UPDATE STATISTICS ==============
+        function updateStatistics() {
+            const visibleRoads = allRoads.filter(shouldShowRoad);
+            
+            if (!visibleRoads.length) {
+                document.getElementById('avgCongestion').textContent = '—%';
+                document.getElementById('worstRoads').textContent = '0';
+                document.getElementById('improvement').textContent = '—%';
+                document.getElementById('totalCost').textContent = '—';
+                return;
+            }
+
+            const avgCongestion = Math.round(visibleRoads.reduce((sum, r) => sum + r.congestion, 0) / visibleRoads.length);
+            const criticalRoads = visibleRoads.filter(r => r.priority === 'critical').length;
+            const improvementPotential = Math.round(100 - avgCongestion);
+            
+            let totalCost = 0;
+            const costMap = { critical: 50, high: 35, medium: 20, low: 10 };
+            visibleRoads.forEach(r => {
+                totalCost += costMap[r.priority] || 0;
+            });
+
+            document.getElementById('avgCongestion').textContent = avgCongestion + '%';
+            document.getElementById('worstRoads').textContent = criticalRoads;
+            document.getElementById('improvement').textContent = improvementPotential + '%';
+            document.getElementById('totalCost').textContent = '₹' + totalCost + ' Cr';
+
+            // Update table
+            const tbody = document.getElementById('statsTableBody');
+            tbody.innerHTML = visibleRoads.map(r => `
+                <tr onclick="selectRoad(${r.id})" style="cursor: pointer; background: hover;">
+                    <td class="stat-number">${r.name}</td>
+                    <td>${r.type}</td>
+                    <td>${r.congestion}%</td>
+                    <td>${(Math.random() * 20 + 5).toFixed(1)}</td>
+                    <td>${Math.floor(Math.random() * 6) + 2}</td>
+                </tr>
+            `).join('');
+
+            // Update details table
+            const detailsBody = document.getElementById('detailsTableBody');
+            detailsBody.innerHTML = visibleRoads.map(r => `
+                <tr onclick="selectRoad(${r.id})" style="cursor: pointer;">
+                    <td class="stat-number">${r.name}</td>
+                    <td>Delhi NCR</td>
+                    <td>${r.construction ? '🚧 Construction' : '✅ Operational'}</td>
+                    <td>
+                        <span class="card-badge badge-${r.priority}">
+                            ${r.priority.toUpperCase()}
+                        </span>
+                    </td>
+                    <td>
+                        <button class="btn-small btn btn-secondary" onclick="selectRoad(${r.id}); event.stopPropagation();">
+                            View
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        // ============== PANEL TOGGLE ==============
+        function togglePanel(header) {
+            const content = header.nextElementSibling;
+            const icon = header.querySelector('.toggle-icon');
+            
+            content.classList.toggle('hidden');
+            icon.classList.toggle('collapsed');
+        }
+
+        // ============== TAB SWITCHING ==============
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.onclick = () => {
+                const tabName = tab.dataset.tab;
+                
+                document.querySelectorAll('.tab-content').forEach(tc => tc.classList.remove('active'));
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                
+                document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
+                tab.classList.add('active');
+            };
+        });
+
+        // ============== FILTER CONTROLS ==============
+        document.getElementById('timeframeSelect').onchange = (e) => {
+            const customGroup = document.getElementById('customDateGroup');
+            currentFilters.timeframe = e.target.value;
+            customGroup.style.display = e.target.value === 'custom' ? 'block' : 'none';
+        };
+
+        document.getElementById('congestionSlider').oninput = (e) => {
+            document.getElementById('congestionValue').textContent = e.target.value + '%';
+            currentFilters.congestion = parseInt(e.target.value);
+            updateMapDisplay();
+        };
+
+        document.querySelectorAll('[data-type]').forEach(btn => {
+            btn.onclick = () => {
+                btn.classList.toggle('active');
+                currentFilters.roadType = Array.from(document.querySelectorAll('[data-type].active'))
+                    .map(b => b.dataset.type);
+                updateMapDisplay();
+            };
+        });
+
+        document.querySelectorAll('[data-overlay]').forEach(btn => {
+            btn.onclick = () => {
+                btn.classList.toggle('active');
+                currentFilters.overlays = Array.from(document.querySelectorAll('[data-overlay].active'))
+                    .map(b => b.dataset.overlay);
+                updateMapDisplay();
+            };
+        });
+
+        // ============== PRESET BUTTONS ==============
+        document.querySelectorAll('.preset-btn').forEach(btn => {
+            btn.onclick = () => {
+                document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                console.log('⏰ Preset selected:', btn.dataset.preset);
+                updateMapDisplay();
+            };
+        });
+
+        // ============== ANALYSIS EXECUTION ==============
+        document.getElementById('runAnalysisBtn').onclick = async () => {
+            const btn = document.getElementById('runAnalysisBtn');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<span class="spinner"></span> Analyzing...';
+            btn.disabled = true;
+
+            // Simulate analysis
+            await new Promise(r => setTimeout(r, 1500));
+
+            const visibleRoads = allRoads.filter(shouldShowRoad);
+            analysisData = {
+                suggestions: visibleRoads.slice(0, 3).map((r, i) => ({
+                    roadName: r.name,
+                    problem: r.construction ? 'Construction delays' : 'High congestion',
+                    solution: r.construction ? 'Expedite construction' : 'Expand lanes',
+                    cost: { critical: '₹50 Cr', high: '₹35 Cr', medium: '₹20 Cr', low: '₹10 Cr' }[r.priority],
+                    timeline: r.construction ? '6 months' : '12 months',
+                    priority: r.priority
+                })),
+                statistics: {
+                    avgCongestion: Math.round(visibleRoads.reduce((s, r) => s + r.congestion, 0) / visibleRoads.length),
+                    worstRoadsCount: visibleRoads.filter(r => r.priority === 'critical').length,
+                    improvementPotential: 35,
+                    totalCost: '₹105 Cr',
+                    roads: visibleRoads.map(r => ({
+                        name: r.name,
+                        type: r.type,
+                        congestion: r.congestion,
+                        length: (Math.random() * 20 + 5).toFixed(1),
+                        lanes: Math.floor(Math.random() * 6) + 2
+                    }))
+                },
+                roads: visibleRoads.map(r => ({
+                    name: r.name,
+                    city: 'Delhi NCR',
+                    status: r.construction ? '🚧 Construction' : '✅ Operational',
+                    priority: r.priority
+                }))
+            };
+
+            displaySuggestions(analysisData.suggestions);
+            displayStatistics(analysisData.statistics);
+            
+            // Save results for export
+            saveAnalysisResults(analysisData);
+
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+
+            document.querySelector('.tab[data-tab="suggestions"]').click();
+            console.log('✅ Analysis complete');
+        };
+
+        // ============== DISPLAY SUGGESTIONS ==============
+        function displaySuggestions(suggestions) {
+            const list = document.getElementById('suggestionsList');
+            
+            if (!suggestions.length) {
+                list.innerHTML = '<p style="text-align: center; color: #999; padding: 32px 0;">No suggestions for current filters</p>';
+                return;
+            }
+
+            list.innerHTML = suggestions.map((s, idx) => `
+                <div class="suggestion-card ${s.priority}">
+                    <div class="card-header">
+                        <div class="card-title">${idx + 1}. ${s.roadName}</div>
+                        <div class="card-badge badge-${s.priority}">${s.priority.toUpperCase()}</div>
+                    </div>
+                    <div class="card-details">
+                        <strong>Problem:</strong> ${s.problem}
+                    </div>
+                    <div class="card-details">
+                        <strong>Solution:</strong> ${s.solution}
+                    </div>
+                    <div class="card-row">
+                        <div class="card-stat">
+                            <div class="card-stat-label">Estimated Cost</div>
+                            <div class="card-stat-value">${s.cost}</div>
+                        </div>
+                        <div class="card-stat">
+                            <div class="card-stat-label">Timeline</div>
+                            <div class="card-stat-value">${s.timeline}</div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // ============== DISPLAY STATISTICS ==============
+        function displayStatistics(stats) {
+            document.getElementById('avgCongestion').textContent = (stats.avgCongestion || 0) + '%';
+            document.getElementById('worstRoads').textContent = stats.worstRoadsCount || 0;
+            document.getElementById('improvement').textContent = (stats.improvementPotential || 0) + '%';
+            document.getElementById('totalCost').textContent = stats.totalCost || '₹0 Cr';
+        }
+
+        // ============== TABLE SORTING ==============
+        function sortTable(colIndex) {
+            console.log('Sorting column:', colIndex);
+        }
+
+        // ============== REPORT GENERATION ==============
+        document.getElementById('generatePdfBtn').onclick = () => {
+            if (!analysisData) {
+                alert('Please run analysis first');
+                return;
+            }
+            showProgress('Generating PDF...');
+            setTimeout(() => {
+                hideProgress();
+                alert('✅ PDF generated and downloaded');
+            }, 2000);
+        };
+
+        document.getElementById('exportJsonBtn').onclick = () => {
+            if (!analysisData) {
+                alert('Please run analysis first');
+                return;
+            }
+            const json = JSON.stringify(analysisData, null, 2);
+            const blob = new Blob([json], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `analysis-${Date.now()}.json`;
+            a.click();
+        };
+
+        document.getElementById('shareBtn').onclick = () => {
+            if (!analysisData) {
+                alert('Please run analysis first');
+                return;
+            }
+            const url = window.location.href;
+            navigator.clipboard.writeText(url);
+            alert('✅ Analysis link copied to clipboard!');
+        };
+
+        document.getElementById('compareBtn').onclick = () => {
+            alert('📊 Scenario comparison feature coming soon!');
+        };
+
+        document.getElementById('resetBtn').onclick = () => {
+            clearRoadMarkers();
+            drawnItems.clearLayers();
+            selectedRoad = null;
+            document.getElementById('detailDrawer').style.display = 'none';
+            loadRoadsForCity('delhi');
+            console.log('🔄 View reset');
+        };
+
+        // ============== UTILITY FUNCTIONS ==============
+        function showProgress(text) {
+            const section = document.getElementById('progressSection');
+            section.style.display = 'block';
+            document.getElementById('progressText').textContent = text;
+            
+            let progress = 0;
+            const interval = setInterval(() => {
+                progress += Math.random() * 30;
+                if (progress > 100) progress = 100;
+                document.getElementById('progressFill').style.width = progress + '%';
+                if (progress === 100) clearInterval(interval);
+            }, 300);
+        }
+
+        function hideProgress() {
+            document.getElementById('progressSection').style.display = 'none';
+            document.getElementById('progressFill').style.width = '0%';
+        }
+
+        // ============== DETAIL DRAWER ==============
+        let detailDrawer = null;
+        document.addEventListener('DOMContentLoaded', () => {
+            detailDrawer = document.getElementById('detailDrawer');
+            if (!detailDrawer) {
+                const drawer = document.createElement('div');
+                drawer.id = 'detailDrawer';
+                drawer.className = 'detail-drawer';
+                drawer.style.cssText = `
+                    position: fixed;
+                    right: 0;
+                    top: 64px;
+                    width: 320px;
+                    height: calc(100vh - 64px);
+                    background: white;
+                    border-left: 1px solid #e1e4e8;
+                    box-shadow: -2px 0 8px rgba(0, 0, 0, 0.1);
+                    z-index: 200;
+                    display: none;
+                    flex-direction: column;
+                    overflow-y: auto;
+                `;
+                drawer.innerHTML = `
+                    <div style="padding: 16px; border-bottom: 1px solid #e1e4e8; display: flex; justify-content: space-between; align-items: center;">
+                        <h3 style="margin: 0; font-size: 16px;">Road Details</h3>
+                        <button onclick="document.getElementById('detailDrawer').style.display = 'none'" style="border: none; background: none; font-size: 20px; cursor: pointer;">×</button>
+                    </div>
+                    <div style="padding: 16px;">
+                        <div style="margin-bottom: 16px;">
+                            <label style="font-size: 12px; color: #666; font-weight: 600;">Road Name</label>
+                            <p id="roadName" style="margin: 4px 0; font-weight: 600;">-</p>
+                        </div>
+                        <div style="margin-bottom: 16px;">
+                            <label style="font-size: 12px; color: #666; font-weight: 600;">Congestion Level</label>
+                            <div style="width: 100%; height: 8px; background: #e0e0e0; border-radius: 4px; overflow: hidden; margin: 4px 0;">
+                                <div id="isiBar" style="height: 100%; background: #2563eb; width: 0%; transition: width 0.3s;"></div>
+                            </div>
+                            <p id="isiValue" style="margin: 4px 0; font-weight: 600; font-size: 12px;">-</p>
+                        </div>
+                        <div style="margin-bottom: 16px;">
+                            <label style="font-size: 12px; color: #666; font-weight: 600;">Priority</label>
+                            <p id="recPriority" style="margin: 4px 0; font-weight: 600;">-</p>
+                        </div>
+                        <div style="margin-bottom: 16px;">
+                            <label style="font-size: 12px; color: #666; font-weight: 600;">Estimated Cost</label>
+                            <p id="recCost" style="margin: 4px 0; font-weight: 600;">-</p>
+                        </div>
+                        <div>
+                            <label style="font-size: 12px; color: #666; font-weight: 600;">Recommendation</label>
+                            <p id="recRationale" style="margin: 4px 0; font-size: 12px; color: #666; line-height: 1.4;">Select a road to view details</p>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(drawer);
+                detailDrawer = drawer;
+            }
+        });
+
+        // ============== EXPORT FUNCTIONS ==============
+        // Store current analysis results globally
+        window.currentAnalysisResults = null;
+
+        // Function to save analysis results for export
+        function saveAnalysisResults(results) {
+            window.currentAnalysisResults = results;
+            document.getElementById('export-status').innerHTML = '✅ Analysis ready for export';
+        }
+
+        // Export as PDF (with fallback)
+        async function exportAsPDF() {
+            if (!window.currentAnalysisResults) {
+                alert('Please run an analysis first!');
+                return;
+            }
+            
+            const exportStatus = document.getElementById('export-status');
+            exportStatus.innerHTML = '⏳ Generating PDF...';
+            
+            try {
+                // Try backend PDF first
+                const response = await fetch('http://localhost:5001/api/download-report', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        analysis_id: window.currentAnalysisResults.analysis_id || 'current_analysis',
+                        ...window.currentAnalysisResults
+                    })
+                });
+                
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `traffic_analysis_${new Date().toISOString().split('T')[0]}.pdf`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    exportStatus.innerHTML = '✅ PDF downloaded successfully';
+                } else {
+                    throw new Error('Backend PDF failed, using client-side');
+                }
+            } catch (error) {
+                console.log('Using client-side PDF generation:', error);
+                exportAsPDFAdvanced();
+            }
+        }
+
+        // Advanced PDF export using jsPDF
+        function exportAsPDFAdvanced() {
+            if (!window.currentAnalysisResults) {
+                alert('Please run an analysis first!');
+                return;
+            }
+            
+            if (typeof jspdf === 'undefined') {
+                alert('PDF library not loaded. Using browser print instead.');
+                window.print();
+                return;
+            }
+            
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            const results = window.currentAnalysisResults;
+            
+            // Title
+            doc.setFontSize(20);
+            doc.setTextColor(30, 64, 175);
+            doc.text('Traffic Optimization Analysis Report', 105, 20, null, null, 'center');
+            
+            // Subtitle
+            doc.setFontSize(12);
+            doc.setTextColor(100, 116, 139);
+            doc.text(`Generated: ${new Date().toLocaleString()}`, 105, 30, null, null, 'center');
+            
+            // Statistics
+            doc.setFontSize(16);
+            doc.setTextColor(30, 64, 175);
+            doc.text('Analysis Statistics', 20, 50);
+            
+            doc.setFontSize(10);
+            doc.setTextColor(0, 0, 0);
+            doc.text(`Roads Analyzed: ${results.statistics?.roads_analyzed || 0}`, 20, 60);
+            doc.text(`Average Congestion: ${((results.statistics?.average_congestion || 0) * 100).toFixed(1)}%`, 20, 66);
+            doc.text(`Maximum Congestion: ${((results.statistics?.max_congestion || 0) * 100).toFixed(1)}%`, 20, 72);
+            
+            // Suggestions
+            doc.setFontSize(14);
+            doc.setTextColor(30, 64, 175);
+            doc.text('Recommended Actions', 20, 90);
+            
+            let yPosition = 100;
+            if (results.suggestions && results.suggestions.length > 0) {
+                results.suggestions.slice(0, 5).forEach((suggestion, index) => {
+                    if (yPosition > 270) {
+                        doc.addPage();
+                        yPosition = 20;
+                    }
+                    
+                    doc.setFontSize(11);
+                    doc.setTextColor(0, 0, 0);
+                    doc.text(`${index + 1}. ${suggestion.roadName}: ${suggestion.solution?.substring(0, 50)}...`, 20, yPosition);
+                    
+                    yPosition += 8;
+                });
+            }
+            
+            // Save PDF
+            doc.save(`traffic_analysis_${new Date().toISOString().split('T')[0]}.pdf`);
+            document.getElementById('export-status').innerHTML = '✅ PDF generated successfully';
+        }
+
+        // Export as JSON
+        function exportAsJSON() {
+            if (!window.currentAnalysisResults) {
+                alert('Please run an analysis first!');
+                return;
+            }
+            
+            const dataStr = JSON.stringify(window.currentAnalysisResults, null, 2);
+            const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+            
+            const exportFileName = `traffic_analysis_${new Date().toISOString().split('T')[0]}.json`;
+            
+            const linkElement = document.createElement('a');
+            linkElement.setAttribute('href', dataUri);
+            linkElement.setAttribute('download', exportFileName);
+            linkElement.click();
+            
+            document.getElementById('export-status').innerHTML = '✅ JSON exported successfully';
+        }
+
+        // Export as CSV
+        function exportAsCSV() {
+            if (!window.currentAnalysisResults || !window.currentAnalysisResults.suggestions) {
+                alert('Please run an analysis first!');
+                return;
+            }
+            
+            const suggestions = window.currentAnalysisResults.suggestions;
+            
+            // Create CSV headers
+            const headers = ['Road Name', 'Problem', 'Solution', 'Priority', 'Cost', 'Timeline'];
+            
+            // Create CSV rows
+            const rows = suggestions.map(suggestion => [
+                suggestion.roadName || '',
+                `"${(suggestion.problem || '').replace(/"/g, '""')}"`,
+                `"${(suggestion.solution || '').replace(/"/g, '""')}"`,
+                suggestion.priority || '',
+                suggestion.cost || '',
+                suggestion.timeline || ''
+            ]);
+            
+            // Combine headers and rows
+            const csvContent = [
+                headers.join(','),
+                ...rows.map(row => row.join(','))
+            ].join('\n');
+            
+            // Create download
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `traffic_suggestions_${new Date().toISOString().split('T')[0]}.csv`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            document.getElementById('export-status').innerHTML = '✅ CSV exported successfully';
+        }
+
+        // Export as Image
+        function exportAsImage() {
+            const resultsSection = document.querySelector('.results-section');
+            if (!resultsSection) {
+                alert('No analysis results to capture!');
+                return;
+            }
+            
+            document.getElementById('export-status').innerHTML = '⏳ Capturing image...';
+            
+            if (typeof html2canvas === 'undefined') {
+                alert('Image capture library not loaded. Please refresh the page.');
+                return;
+            }
+            
+            html2canvas(resultsSection, {
+                scale: 2,
+                useCORS: true,
+                logging: false,
+                backgroundColor: '#ffffff'
+            }).then(canvas => {
+                const image = canvas.toDataURL('image/png');
+                const link = document.createElement('a');
+                link.href = image;
+                link.download = `traffic_analysis_${new Date().toISOString().split('T')[0]}.png`;
+                link.click();
+                
+                document.getElementById('export-status').innerHTML = '✅ Image exported successfully';
+            }).catch(err => {
+                console.error('Image export error:', err);
+                document.getElementById('export-status').innerHTML = '❌ Image export failed';
+            });
+        }
+
+        // Share Analysis
+        function shareAnalysis() {
+            if (!window.currentAnalysisResults) {
+                alert('Please run an analysis first!');
+                return;
+            }
+            
+            const shareData = {
+                title: 'Traffic Analysis Report',
+                text: `Traffic analysis completed`,
+                url: window.location.href
+            };
+            
+            if (navigator.share) {
+                navigator.share(shareData)
+                    .then(() => document.getElementById('export-status').innerHTML = '✅ Shared successfully')
+                    .catch(err => console.log('Sharing cancelled:', err));
+            } else {
+                const shareText = `Traffic Analysis Results
+- Roads Analyzed: ${window.currentAnalysisResults.statistics?.roads_analyzed || 0}
+- Average Congestion: ${((window.currentAnalysisResults.statistics?.average_congestion || 0) * 100).toFixed(1)}%
+- Generated: ${new Date().toLocaleString()}`;
+                
+                navigator.clipboard.writeText(shareText)
+                    .then(() => {
+                        document.getElementById('export-status').innerHTML = '✅ Results copied to clipboard!';
+                        alert('Analysis results copied to clipboard!');
+                    })
+                    .catch(err => {
+                        console.error('Copy failed:', err);
+                        alert('Sharing not supported. Please use export options instead.');
+                    });
+            }
+        }
+
+        // ============== INITIALIZATION ==============
+        function startApp() {
+            initMap();
+            
+            // Setup export button listeners
+            document.getElementById('export-pdf-btn')?.addEventListener('click', exportAsPDF);
+            document.getElementById('export-json-btn')?.addEventListener('click', exportAsJSON);
+            document.getElementById('export-csv-btn')?.addEventListener('click', exportAsCSV);
+            document.getElementById('export-image-btn')?.addEventListener('click', exportAsImage);
+            document.getElementById('export-share-btn')?.addEventListener('click', shareAnalysis);
+            
+            console.log('✅ Interactive analysis dashboard initialized');
+            console.log('✅ Export functionality ready');
+        }
+
+        // Initialize on document ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', startApp);
+        } else {
+            startApp();
+        }
+    </script>
+</body>
+</html>

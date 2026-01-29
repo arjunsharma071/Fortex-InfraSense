@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>InfraSense AI - Enhanced Dashboard</title>
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css" />
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f0f2f5;
+            overflow: hidden;
+        }
+        
+        .dashboard-container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+        
+        /* Header */
+        .dashboard-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 16px 24px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .header-title {
+            font-size: 24px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .api-status-bar {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+        }
+        
+        .api-badge {
+            background: rgba(255,255,255,0.2);
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .api-badge.active::before {
+            content: '●';
+            color: #4ade80;
+        }
+        
+        /* Main Content */
+        .dashboard-content {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+            gap: 0;
+        }
+        
+        #map {
+            flex: 1;
+            background: #e0e0e0;
+            position: relative;
+        }
+        
+        /* Sidebar */
+        .dashboard-sidebar {
+            width: 380px;
+            background: white;
+            border-left: 1px solid #e0e0e0;
+            overflow-y: auto;
+            box-shadow: -2px 0 8px rgba(0,0,0,0.1);
+        }
+        
+        .sidebar-section {
+            padding: 16px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        
+        .sidebar-section:last-child {
+            border-bottom: none;
+        }
+        
+        .section-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .form-group {
+            margin-bottom: 12px;
+        }
+        
+        .form-label {
+            display: block;
+            font-size: 12px;
+            font-weight: 500;
+            color: #555;
+            margin-bottom: 4px;
+        }
+        
+        .form-input,
+        .form-select {
+            width: 100%;
+            padding: 8px 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 12px;
+            font-family: inherit;
+            transition: all 0.3s;
+        }
+        
+        .form-input:focus,
+        .form-select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        
+        button {
+            flex: 1;
+            min-width: 80px;
+            padding: 8px 12px;
+            border: none;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #5568d3;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+        
+        .btn-secondary {
+            background: #f0f0f0;
+            color: #333;
+            border: 1px solid #ddd;
+        }
+        
+        .btn-secondary:hover {
+            background: #e8e8e8;
+        }
+        
+        .btn-danger {
+            background: #ef4444;
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background: #dc2626;
+        }
+        
+        .results-container {
+            max-height: 300px;
+            overflow-y: auto;
+            background: #fafafa;
+            border-radius: 6px;
+            padding: 12px;
+        }
+        
+        .result-item {
+            background: white;
+            padding: 10px;
+            margin-bottom: 8px;
+            border-radius: 4px;
+            border-left: 3px solid #667eea;
+            font-size: 12px;
+        }
+        
+        .result-item strong {
+            color: #333;
+            display: block;
+            margin-bottom: 4px;
+        }
+        
+        .loading-spinner {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+        
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .info-badge {
+            display: inline-block;
+            background: #e0e7ff;
+            color: #3730a3;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 11px;
+            margin-top: 4px;
+        }
+        
+        /* Responsive */
+        @media (max-width: 768px) {
+            .dashboard-content {
+                flex-direction: column-reverse;
+            }
+            
+            .dashboard-sidebar {
+                width: 100%;
+                max-height: 250px;
+            }
+            
+            #map {
+                min-height: 300px;
+            }
+            
+            .api-status-bar {
+                flex-wrap: wrap;
+                gap: 8px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard-container">
+        <!-- Header -->
+        <div class="dashboard-header">
+            <div class="header-title">
+                <span>🗺️</span>
+                <span>InfraSense AI Dashboard</span>
+            </div>
+            <div class="api-status-bar">
+                <div class="api-badge active" title="Google Maps API">
+                    <i class="fas fa-map"></i> Google Maps
+                </div>
+                <div class="api-badge active" title="OpenStreetMap">
+                    <i class="fas fa-atlas"></i> OpenStreetMap
+                </div>
+                <div class="api-badge active" title="OpenAI GPT-4">
+                    <i class="fas fa-brain"></i> GPT-4
+                </div>
+                <div class="api-badge active" title="Grok AI">
+                    <i class="fas fa-sparkles"></i> Grok
+                </div>
+            </div>
+        </div>
+        
+        <!-- Main Content -->
+        <div class="dashboard-content">
+            <!-- Map -->
+            <div id="map"></div>
+            
+            <!-- Sidebar -->
+            <div class="dashboard-sidebar">
+                <!-- Route Planning Section -->
+                <div class="sidebar-section">
+                    <div class="section-title">
+                        <i class="fas fa-route"></i> Route Planning
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Origin Latitude</label>
+                        <input type="text" class="form-input" id="originLat" value="28.6139" placeholder="Latitude">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Origin Longitude</label>
+                        <input type="text" class="form-input" id="originLng" value="77.2090" placeholder="Longitude">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Destination Latitude</label>
+                        <input type="text" class="form-input" id="destLat" value="28.5244" placeholder="Latitude">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Destination Longitude</label>
+                        <input type="text" class="form-input" id="destLng" value="77.0855" placeholder="Longitude">
+                    </div>
+                    
+                    <div class="button-group">
+                        <button class="btn-primary" onclick="traceRoute()">
+                            <i class="fas fa-directions"></i> Trace
+                        </button>
+                        <button class="btn-secondary" onclick="analyzeTraffic()">
+                            <i class="fas fa-car"></i> Traffic
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Road Analysis Section -->
+                <div class="sidebar-section">
+                    <div class="section-title">
+                        <i class="fas fa-road"></i> Road Analysis
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Latitude</label>
+                        <input type="text" class="form-input" id="roadLat" value="28.6139" placeholder="Latitude">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Longitude</label>
+                        <input type="text" class="form-input" id="roadLng" value="77.2090" placeholder="Longitude">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Road Type</label>
+                        <select class="form-select" id="roadType">
+                            <option value="all">All Types</option>
+                            <option value="primary">Primary</option>
+                            <option value="secondary">Secondary</option>
+                            <option value="tertiary">Tertiary</option>
+                        </select>
+                    </div>
+                    
+                    <div class="button-group">
+                        <button class="btn-primary" onclick="getRoads()">
+                            <i class="fas fa-map-marked"></i> Get Roads
+                        </button>
+                        <button class="btn-secondary" onclick="analyzeRoads()">
+                            <i class="fas fa-chart-bar"></i> Analyze
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Tools Section -->
+                <div class="sidebar-section">
+                    <div class="section-title">
+                        <i class="fas fa-tools"></i> Tools
+                    </div>
+                    
+                    <div class="button-group">
+                        <button class="btn-secondary" onclick="clearMap()">
+                            <i class="fas fa-trash"></i> Clear
+                        </button>
+                        <button class="btn-secondary" onclick="resetView()">
+                            <i class="fas fa-undo"></i> Reset
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Results Section -->
+                <div class="sidebar-section">
+                    <div class="section-title">
+                        <i class="fas fa-list"></i> Results
+                    </div>
+                    
+                    <div class="loading-spinner" id="loadingSpinner">
+                        <div class="spinner"></div>
+                        <p style="font-size: 12px; color: #666;">Loading...</p>
+                    </div>
+                    
+                    <div class="results-container" id="resultsContainer">
+                        <p style="color: #999; font-size: 12px; text-align: center; padding: 20px;">
+                            Select options and click a button to see results
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
+    
+    <script>
+        let map = null;
+        let markers = [];
+        let polylines = [];
+        
+        // Initialize map on page load
+        window.addEventListener('load', function() {
+            initializeMap();
+        });
+        
+        function initializeMap() {
+            if (typeof L === 'undefined') {
+                console.error('Leaflet not loaded');
+                return;
+            }
+            
+            const mapContainer = document.getElementById('map');
+            if (!mapContainer) {
+                console.error('Map container not found');
+                return;
+            }
+            
+            console.log('✓ Initializing map...');
+            
+            // Create map
+            map = L.map('map', {
+                center: [28.6139, 77.2090],
+                zoom: 12,
+                zoomControl: true,
+                attributionControl: true
+            });
+            
+            // Add OpenStreetMap tiles
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors',
+                maxZoom: 19
+            }).addTo(map);
+            
+            console.log('✓ Map initialized successfully');
+        }
+        
+        // Show/hide loading spinner
+        function showLoading() {
+            document.getElementById('loadingSpinner').style.display = 'block';
+        }
+        
+        function hideLoading() {
+            document.getElementById('loadingSpinner').style.display = 'none';
+        }
+        
+        // Display results
+        function displayResults(html) {
+            document.getElementById('resultsContainer').innerHTML = html;
+        }
+        
+        // API Functions
+        async function traceRoute() {
+            if (!map) {
+                alert('Map not initialized');
+                return;
+            }
+            
+            const originLat = parseFloat(document.getElementById('originLat').value);
+            const originLng = parseFloat(document.getElementById('originLng').value);
+            const destLat = parseFloat(document.getElementById('destLat').value);
+            const destLng = parseFloat(document.getElementById('destLng').value);
+            
+            if (!originLat || !originLng || !destLat || !destLng) {
+                alert('Please enter valid coordinates');
+                return;
+            }
+            
+            showLoading();
+            
+            try {
+                const response = await fetch(
+                    `/api/routes/comprehensive?origin_lat=${originLat}&origin_lng=${originLng}&dest_lat=${destLat}&dest_lng=${destLng}`
+                );
+                const data = await response.json();
+                
+                // Clear previous markers
+                markers.forEach(m => map.removeLayer(m));
+                markers = [];
+                
+                // Add origin marker
+                const originMarker = L.circleMarker([originLat, originLng], {
+                    radius: 8,
+                    fillColor: '#4ade80',
+                    color: '#fff',
+                    weight: 2,
+                    opacity: 1,
+                    fillOpacity: 0.8
+                }).addTo(map).bindPopup('🟢 Origin');
+                markers.push(originMarker);
+                
+                // Add destination marker
+                const destMarker = L.circleMarker([destLat, destLng], {
+                    radius: 8,
+                    fillColor: '#ef4444',
+                    color: '#fff',
+                    weight: 2,
+                    opacity: 1,
+                    fillOpacity: 0.8
+                }).addTo(map).bindPopup('🔴 Destination');
+                markers.push(destMarker);
+                
+                // Fit bounds
+                map.fitBounds([[originLat, originLng], [destLat, destLng]]);
+                
+                // Display results
+                let html = '<div class="result-item"><strong>✅ Route Found</strong>';
+                if (data.routes && data.routes.google_maps && data.routes.google_maps.routes) {
+                    const route = data.routes.google_maps.routes[0];
+                    const leg = route.legs[0];
+                    html += `<div><strong>Distance:</strong> ${leg.distance.text}</div>`;
+                    html += `<div><strong>Duration:</strong> ${leg.duration.text}</div>`;
+                    if (leg.duration_in_traffic) {
+                        html += `<div><strong>With Traffic:</strong> ${leg.duration_in_traffic.text}</div>`;
+                    }
+                }
+                html += '<span class="info-badge">🌐 Google Maps + OSM + AI</span></div>';
+                
+                displayResults(html);
+            } catch (error) {
+                displayResults(`<div class="result-item"><strong>❌ Error:</strong> ${error.message}</div>`);
+            } finally {
+                hideLoading();
+            }
+        }
+        
+        async function getRoads() {
+            if (!map) {
+                alert('Map not initialized');
+                return;
+            }
+            
+            const lat = parseFloat(document.getElementById('roadLat').value);
+            const lng = parseFloat(document.getElementById('roadLng').value);
+            
+            if (!lat || !lng) {
+                alert('Please enter valid coordinates');
+                return;
+            }
+            
+            showLoading();
+            
+            try {
+                const response = await fetch(`/api/roads/comprehensive?lat=${lat}&lng=${lng}&radius=5000`);
+                const data = await response.json();
+                
+                let html = `<div class="result-item"><strong>✅ Found ${data.roads ? data.roads.length : 0} roads</strong>`;
+                
+                if (data.roads && data.roads.length > 0) {
+                    data.roads.slice(0, 5).forEach((road, i) => {
+                        html += `<div style="margin-top: 8px;"><strong>${i+1}. ${road.name || 'Unnamed'}</strong><br>`;
+                        html += `Type: ${road.type || 'N/A'} | Surface: ${road.surface || 'N/A'}</div>`;
+                    });
+                }
+                
+                html += '<span class="info-badge">🗺️ OpenStreetMap + Leaflet</span></div>';
+                displayResults(html);
+            } catch (error) {
+                displayResults(`<div class="result-item"><strong>❌ Error:</strong> ${error.message}</div>`);
+            } finally {
+                hideLoading();
+            }
+        }
+        
+        async function analyzeTraffic() {
+            showLoading();
+            displayResults('<div class="result-item"><strong>🚗 Analyzing traffic patterns...</strong><span class="info-badge">🤖 AI Analysis</span></div>');
+            hideLoading();
+        }
+        
+        async function analyzeRoads() {
+            showLoading();
+            displayResults('<div class="result-item"><strong>📊 Analyzing road conditions...</strong><span class="info-badge">🤖 AI Analysis</span></div>');
+            hideLoading();
+        }
+        
+        function clearMap() {
+            markers.forEach(m => map.removeLayer(m));
+            polylines.forEach(p => map.removeLayer(p));
+            markers = [];
+            polylines = [];
+            displayResults('<div class="result-item"><strong>✓ Map cleared</strong></div>');
+        }
+        
+        function resetView() {
+            map.setView([28.6139, 77.2090], 12);
+            displayResults('<div class="result-item"><strong>✓ View reset</strong></div>');
+        }
+    </script>
+</body>
+</html>

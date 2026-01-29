@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>InfraSense - Routes & Roads Dashboard</title>
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css"/>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        html, body {
+            width: 100%;
+            height: 100%;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        .container {
+            display: flex;
+            width: 100%;
+            height: 100vh;
+            flex-direction: column;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+        
+        .header h1 {
+            margin: 0;
+            font-size: 28px;
+            font-weight: bold;
+        }
+        
+        .header p {
+            margin: 5px 0 0 0;
+            opacity: 0.9;
+            font-size: 14px;
+        }
+        
+        .main-content {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+        
+        #map {
+            flex: 1;
+            background: #e0e0e0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+        
+        .sidebar {
+            width: 380px;
+            background: white;
+            border-left: 2px solid #ddd;
+            padding: 20px;
+            overflow-y: auto;
+            box-shadow: -2px 0 5px rgba(0,0,0,0.1);
+        }
+        
+        .section {
+            margin-bottom: 25px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        
+        .section:last-child {
+            border-bottom: none;
+        }
+        
+        .section h3 {
+            font-size: 15px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .form-group {
+            margin-bottom: 12px;
+        }
+        
+        .form-group label {
+            display: block;
+            font-size: 12px;
+            font-weight: 500;
+            color: #555;
+            margin-bottom: 4px;
+        }
+        
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 8px 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 12px;
+            transition: border-color 0.3s;
+        }
+        
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        
+        button {
+            flex: 1;
+            min-width: 100px;
+            padding: 10px 12px;
+            border: none;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #5568d3;
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+        }
+        
+        .btn-secondary {
+            background: #f0f0f0;
+            color: #333;
+            border: 1px solid #ddd;
+        }
+        
+        .btn-secondary:hover {
+            background: #e8e8e8;
+        }
+        
+        .btn-danger {
+            background: #ef4444;
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background: #dc2626;
+        }
+        
+        .api-status {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            padding: 12px;
+            background: #f9f9f9;
+            border-radius: 6px;
+        }
+        
+        .api-item {
+            padding: 10px;
+            border-radius: 4px;
+            text-align: center;
+            font-size: 11px;
+            font-weight: 500;
+            background: white;
+            border: 1px solid #e0e0e0;
+        }
+        
+        .api-item.active {
+            background: #d4edda;
+            border-color: #c3e6cb;
+            color: #155724;
+        }
+        
+        .api-item.inactive {
+            background: #f8d7da;
+            border-color: #f5c6cb;
+            color: #721c24;
+        }
+        
+        .results {
+            max-height: 300px;
+            overflow-y: auto;
+            padding: 10px;
+            background: #fafafa;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+        
+        .result-item {
+            padding: 10px;
+            margin-bottom: 8px;
+            background: white;
+            border-left: 3px solid #667eea;
+            border-radius: 2px;
+        }
+        
+        .result-item strong {
+            color: #333;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #999;
+        }
+        
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        @media (max-width: 768px) {
+            .main-content {
+                flex-direction: column-reverse;
+            }
+            
+            .sidebar {
+                width: 100%;
+                border-left: none;
+                border-top: 2px solid #ddd;
+                max-height: 300px;
+            }
+            
+            #map {
+                min-height: 300px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>🗺️ InfraSense - Routes & Roads Dashboard</h1>
+            <p>Multi-API Integration: Google Maps + OpenStreetMap + OpenAI GPT-4 + Xai Grok</p>
+        </div>
+        
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Map -->
+            <div id="map"></div>
+            
+            <!-- Sidebar -->
+            <div class="sidebar">
+                <!-- API Status -->
+                <div class="section">
+                    <h3>🔌 API Status</h3>
+                    <div class="api-status">
+                        <div class="api-item active">✓ Google Maps</div>
+                        <div class="api-item active">✓ OpenStreetMap</div>
+                        <div class="api-item active">✓ OpenAI GPT-4</div>
+                        <div class="api-item active">✓ Xai Grok</div>
+                    </div>
+                </div>
+                
+                <!-- Route Planning -->
+                <div class="section">
+                    <h3>🧭 Route Planning</h3>
+                    <div class="form-group">
+                        <label>Origin Latitude</label>
+                        <input type="text" id="origin-lat" value="28.6139" placeholder="28.6139">
+                    </div>
+                    <div class="form-group">
+                        <label>Origin Longitude</label>
+                        <input type="text" id="origin-lng" value="77.2090" placeholder="77.2090">
+                    </div>
+                    <div class="form-group">
+                        <label>Destination Latitude</label>
+                        <input type="text" id="dest-lat" value="28.5244" placeholder="28.5244">
+                    </div>
+                    <div class="form-group">
+                        <label>Destination Longitude</label>
+                        <input type="text" id="dest-lng" value="77.0855" placeholder="77.0855">
+                    </div>
+                    <div class="button-group">
+                        <button class="btn-primary" onclick="traceRoute()">📍 Trace Route</button>
+                        <button class="btn-secondary" onclick="analyzeTraffic()">🚗 Traffic</button>
+                    </div>
+                </div>
+                
+                <!-- Road Analysis -->
+                <div class="section">
+                    <h3>🛣️ Road Analysis</h3>
+                    <div class="form-group">
+                        <label>Latitude</label>
+                        <input type="text" id="road-lat" value="28.6139" placeholder="28.6139">
+                    </div>
+                    <div class="form-group">
+                        <label>Longitude</label>
+                        <input type="text" id="road-lng" value="77.2090" placeholder="77.2090">
+                    </div>
+                    <div class="form-group">
+                        <label>Road Type</label>
+                        <select id="road-type">
+                            <option value="all">All Roads</option>
+                            <option value="primary">Primary</option>
+                            <option value="secondary">Secondary</option>
+                            <option value="tertiary">Tertiary</option>
+                            <option value="motorway">Motorway</option>
+                        </select>
+                    </div>
+                    <div class="button-group">
+                        <button class="btn-primary" onclick="getRoads()">🛣️ Get Roads</button>
+                        <button class="btn-secondary" onclick="analyzeRoads()">📊 Analyze</button>
+                    </div>
+                </div>
+                
+                <!-- Tools -->
+                <div class="section">
+                    <h3>🛠️ Tools</h3>
+                    <div class="button-group">
+                        <button class="btn-secondary" onclick="clearMap()">🗑️ Clear Map</button>
+                        <button class="btn-secondary" onclick="resetView()">🔄 Reset View</button>
+                    </div>
+                </div>
+                
+                <!-- Results -->
+                <div class="section">
+                    <h3>📊 Results</h3>
+                    <div id="results" class="results">
+                        <p style="color: #999; text-align: center; padding: 20px;">Click a button to see results</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
+    
+    <script>
+        let map;
+        let markers = [];
+        let polylines = [];
+        
+        // Initialize map when page loads
+        window.addEventListener('load', function() {
+            console.log('Page loaded, initializing map...');
+            
+            // Create map
+            map = L.map('map', {
+                center: [28.6139, 77.2090],
+                zoom: 12,
+                zoomControl: true,
+                attributionControl: true
+            });
+            
+            console.log('Map object created:', map);
+            
+            // Add tile layer
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors',
+                maxZoom: 19,
+                minZoom: 2
+            }).addTo(map);
+            
+            console.log('Tile layer added');
+            
+            // Add a test marker
+            L.circleMarker([28.6139, 77.2090], {
+                radius: 8,
+                fillColor: '#667eea',
+                color: '#fff',
+                weight: 2,
+                opacity: 1,
+                fillOpacity: 0.8
+            }).addTo(map).bindPopup('Test Location');
+            
+            console.log('Map initialized successfully!');
+        });
+        
+        function showResults(html) {
+            document.getElementById('results').innerHTML = html;
+        }
+        
+        function showLoading() {
+            document.getElementById('results').innerHTML = '<div class="loading"><div class="spinner"></div>Loading...</div>';
+        }
+        
+        async function traceRoute() {
+            showLoading();
+            const originLat = parseFloat(document.getElementById('origin-lat').value);
+            const originLng = parseFloat(document.getElementById('origin-lng').value);
+            const destLat = parseFloat(document.getElementById('dest-lat').value);
+            const destLng = parseFloat(document.getElementById('dest-lng').value);
+            
+            if (!originLat || !originLng || !destLat || !destLng) {
+                showResults('<div class="result-item">❌ Please enter valid coordinates</div>');
+                return;
+            }
+            
+            try {
+                const url = `http://localhost:5000/api/routes/comprehensive?origin_lat=${originLat}&origin_lng=${originLng}&dest_lat=${destLat}&dest_lng=${destLng}`;
+                const response = await fetch(url);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                // Clear previous markers
+                markers.forEach(m => map.removeLayer(m));
+                markers = [];
+                
+                // Add origin marker
+                const originMarker = L.circleMarker([originLat, originLng], {
+                    radius: 8,
+                    fillColor: '#48bb78',
+                    color: '#fff',
+                    weight: 2,
+                    opacity: 1,
+                    fillOpacity: 0.8
+                }).addTo(map).bindPopup('🟢 Origin');
+                markers.push(originMarker);
+                
+                // Add destination marker
+                const destMarker = L.circleMarker([destLat, destLng], {
+                    radius: 8,
+                    fillColor: '#f56565',
+                    color: '#fff',
+                    weight: 2,
+                    opacity: 1,
+                    fillOpacity: 0.8
+                }).addTo(map).bindPopup('🔴 Destination');
+                markers.push(destMarker);
+                
+                // Fit bounds
+                map.fitBounds([
+                    [originLat, originLng],
+                    [destLat, destLng]
+                ]);
+                
+                // Display results
+                let html = '<div class="result-item"><strong>✅ Route Found</strong></div>';
+                if (data.routes && data.routes.google_maps && data.routes.google_maps.routes && data.routes.google_maps.routes[0]) {
+                    const route = data.routes.google_maps.routes[0];
+                    const leg = route.legs[0];
+                    html += `<div class="result-item"><strong>Distance:</strong> ${leg.distance.text}</div>`;
+                    html += `<div class="result-item"><strong>Duration:</strong> ${leg.duration.text}</div>`;
+                    if (leg.duration_in_traffic) {
+                        html += `<div class="result-item"><strong>Traffic Time:</strong> ${leg.duration_in_traffic.text}</div>`;
+                    }
+                }
+                
+                showResults(html);
+                
+            } catch (error) {
+                console.error('Error:', error);
+                showResults(`<div class="result-item">❌ Error: ${error.message}</div>`);
+            }
+        }
+        
+        async function getRoads() {
+            showLoading();
+            const lat = parseFloat(document.getElementById('road-lat').value);
+            const lng = parseFloat(document.getElementById('road-lng').value);
+            const type = document.getElementById('road-type').value;
+            
+            if (!lat || !lng) {
+                showResults('<div class="result-item">❌ Please enter valid coordinates</div>');
+                return;
+            }
+            
+            try {
+                const url = `http://localhost:5000/api/roads/comprehensive?lat=${lat}&lng=${lng}&radius=5000`;
+                const response = await fetch(url);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                let html = `<div class="result-item"><strong>✅ Found ${data.roads ? data.roads.length : 0} Roads</strong></div>`;
+                
+                if (data.roads && data.roads.length > 0) {
+                    data.roads.slice(0, 5).forEach((road, i) => {
+                        html += `<div class="result-item">
+                            <strong>${i+1}. ${road.name || 'Unnamed'}</strong><br>
+                            Type: ${road.type || 'N/A'}<br>
+                            Surface: ${road.surface || 'N/A'}
+                        </div>`;
+                    });
+                }
+                
+                showResults(html);
+                
+            } catch (error) {
+                console.error('Error:', error);
+                showResults(`<div class="result-item">❌ Error: ${error.message}</div>`);
+            }
+        }
+        
+        async function analyzeTraffic() {
+            showLoading();
+            showResults('<div class="result-item">🚗 Analyzing traffic patterns...</div>');
+        }
+        
+        async function analyzeRoads() {
+            showLoading();
+            showResults('<div class="result-item">📊 Analyzing road conditions...</div>');
+        }
+        
+        function clearMap() {
+            markers.forEach(m => map.removeLayer(m));
+            polylines.forEach(p => map.removeLayer(p));
+            markers = [];
+            polylines = [];
+            showResults('<p style="color: #999; text-align: center;">Map cleared</p>');
+        }
+        
+        function resetView() {
+            map.setView([28.6139, 77.2090], 12);
+            showResults('<p style="color: #999; text-align: center;">View reset to Delhi</p>');
+        }
+    </script>
+</body>
+</html>

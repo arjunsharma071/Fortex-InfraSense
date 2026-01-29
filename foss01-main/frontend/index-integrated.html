@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SOLAR - Infrastructure Analysis & Mapping</title>
+    
+    <!-- Leaflet & Leaflet Draw -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet-draw/1.0.4/leaflet.draw.min.css">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Design System CSS -->
+    <link rel="stylesheet" href="design-system.css">
+    <link rel="stylesheet" href="style.css">
+    
+    <style>
+        .road-popup { min-width: 250px; }
+        .road-popup h3 { margin-bottom: 10px; color: #1e40af; }
+        .road-popup p { margin: 5px 0; font-size: 13px; }
+        
+        .analysis-results {
+          padding: 20px;
+        }
+        
+        .analysis-stats {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 10px;
+          margin: 20px 0;
+        }
+        
+        .stat-box {
+          background: #f3f4f6;
+          padding: 12px;
+          border-radius: 6px;
+          text-align: center;
+          border-left: 4px solid #3b82f6;
+        }
+        
+        .stat-box.critical {
+          border-left-color: #ef4444;
+        }
+        
+        .stat-label {
+          display: block;
+          font-size: 12px;
+          color: #6b7280;
+          margin-bottom: 5px;
+        }
+        
+        .stat-value {
+          display: block;
+          font-size: 20px;
+          font-weight: bold;
+          color: #1f2937;
+        }
+        
+        .roads-list {
+          max-height: 300px;
+          overflow-y: auto;
+          margin-top: 15px;
+        }
+        
+        .road-item {
+          background: #fff;
+          border: 1px solid #e5e7eb;
+          border-radius: 6px;
+          padding: 12px;
+          margin-bottom: 10px;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+        
+        .road-item:hover {
+          border-color: #3b82f6;
+          box-shadow: 0 2px 8px rgba(59, 130, 246, 0.1);
+        }
+        
+        .road-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 8px;
+        }
+        
+        .road-header h4 {
+          margin: 0;
+          font-size: 14px;
+          color: #1f2937;
+        }
+        
+        .priority-badge {
+          font-size: 11px;
+          padding: 3px 8px;
+          border-radius: 4px;
+          font-weight: bold;
+          color: white;
+        }
+        
+        .priority-badge.critical {
+          background: #ef4444;
+        }
+        
+        .priority-badge.high {
+          background: #f97316;
+        }
+        
+        .priority-badge.medium {
+          background: #eab308;
+        }
+        
+        .priority-badge.low {
+          background: #22c55e;
+        }
+        
+        .road-info {
+          display: flex;
+          gap: 15px;
+          font-size: 12px;
+          color: #6b7280;
+        }
+        
+        .road-details {
+          padding: 20px;
+        }
+        
+        .btn-back {
+          background: #e5e7eb;
+          border: none;
+          padding: 8px 12px;
+          border-radius: 4px;
+          cursor: pointer;
+          margin-bottom: 15px;
+          font-size: 13px;
+        }
+        
+        .btn-back:hover {
+          background: #d1d5db;
+        }
+        
+        .detail-grid {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 15px;
+          margin: 20px 0;
+        }
+        
+        .detail-item {
+          padding: 12px;
+          background: #f9fafb;
+          border-radius: 6px;
+          border-left: 3px solid #3b82f6;
+        }
+        
+        .detail-item .label {
+          display: block;
+          font-size: 11px;
+          color: #6b7280;
+          margin-bottom: 5px;
+          font-weight: 600;
+          text-transform: uppercase;
+        }
+        
+        .detail-item .value {
+          display: block;
+          font-size: 16px;
+          font-weight: bold;
+          color: #1f2937;
+        }
+        
+        .detail-item .value.small {
+          font-size: 12px;
+          font-family: monospace;
+        }
+        
+        .detail-item .value.priority-critical { color: #ef4444; }
+        .detail-item .value.priority-high { color: #f97316; }
+        .detail-item .value.congestion-high { color: #ef4444; }
+        .detail-item .value.congestion-medium { color: #f97316; }
+        
+        .recommendations {
+          background: #eff6ff;
+          border: 1px solid #bfdbfe;
+          border-radius: 6px;
+          padding: 15px;
+          margin: 20px 0;
+        }
+        
+        .recommendations h3 {
+          margin-top: 0;
+          color: #1e40af;
+          font-size: 14px;
+        }
+        
+        .rec-item {
+          display: flex;
+          gap: 10px;
+          margin: 10px 0;
+          font-size: 13px;
+        }
+        
+        .rec-item span {
+          color: #10b981;
+          font-weight: bold;
+          min-width: 20px;
+        }
+        
+        .rec-item p {
+          margin: 0;
+          color: #1f2937;
+        }
+        
+        .btn {
+          padding: 10px 16px;
+          border: none;
+          border-radius: 6px;
+          cursor: pointer;
+          font-size: 13px;
+          font-weight: 600;
+          transition: all 0.2s;
+        }
+        
+        .btn-primary {
+          background: #3b82f6;
+          color: white;
+        }
+        
+        .btn-primary:hover {
+          background: #2563eb;
+        }
+        
+        .btn-outline {
+          background: white;
+          color: #3b82f6;
+          border: 1px solid #3b82f6;
+        }
+        
+        .btn-outline:hover {
+          background: #eff6ff;
+        }
+
+        @keyframes slideIn {
+          from { transform: translateX(400px); opacity: 0; }
+          to { transform: translateX(0); opacity: 1; }
+        }
+
+        @keyframes slideOut {
+          from { transform: translateX(0); opacity: 1; }
+          to { transform: translateX(400px); opacity: 0; }
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <!-- HEADER -->
+        <header class="app-header">
+            <div class="app-logo">
+                <span style="font-size: 24px;">🌞</span>
+                <span>SOLAR - Infrastructure Analysis</span>
+            </div>
+            <div class="app-controls">
+                <button class="btn btn-outline" id="toggle-filters">
+                    <i class="fas fa-sliders-h"></i>
+                    Filters
+                </button>
+                <button class="btn btn-primary" id="analyze-btn">
+                    <i class="fas fa-brain"></i>
+                    Analyze Region
+                </button>
+            </div>
+        </header>
+
+        <!-- MAP CONTAINER -->
+        <div class="map-container">
+            <div id="map"></div>
+
+            <!-- ADVANCED SEARCH BAR -->
+            <div class="advanced-search">
+                <div class="search-bar">
+                    <i class="fas fa-search"></i>
+                    <input 
+                        type="text" 
+                        placeholder="Search roads, areas, cities..." 
+                        class="search-input"
+                    >
+                    <button class="filter-btn" id="search-filter-btn">
+                        <i class="fas fa-sliders-h"></i>
+                    </button>
+                </div>
+
+                <!-- EXPANDED FILTERS -->
+                <div class="search-expanded" style="display: none;">
+                    <div class="filter-section">
+                        <h4>Congestion Level</h4>
+                        <div class="slider-container">
+                            <input type="range" class="slider" min="0" max="100" value="0">
+                        </div>
+                    </div>
+
+                    <div class="filter-section">
+                        <h4>Time Range</h4>
+                        <div class="input-field">
+                            <input type="time" value="09:00"> to <input type="time" value="17:00">
+                        </div>
+                    </div>
+
+                    <div class="filter-section">
+                        <h4>Data Sources</h4>
+                        <div class="filter-chips">
+                            <div class="chip active"><span>🗺️ OpenStreetMap</span></div>
+                            <div class="chip active"><span>📡 Google Maps</span></div>
+                            <div class="chip active"><span>🌤️ Real-time</span></div>
+                        </div>
+                    </div>
+
+                    <div style="display: flex; gap: 10px; margin-top: 15px;">
+                        <button class="btn btn-primary" style="flex: 1;">Apply</button>
+                        <button class="btn btn-outline" style="flex: 1;">Reset</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- HEATMAP LEGEND -->
+            <div class="heatmap-legend">
+                <h4>🚦 Priority Status</h4>
+                <div class="heatmap-item">
+                    <div class="heatmap-color" style="background: #ef4444;"></div>
+                    <span>Critical (80%+)</span>
+                </div>
+                <div class="heatmap-item">
+                    <div class="heatmap-color" style="background: #f97316;"></div>
+                    <span>High (60-79%)</span>
+                </div>
+                <div class="heatmap-item">
+                    <div class="heatmap-color" style="background: #eab308;"></div>
+                    <span>Medium (40-59%)</span>
+                </div>
+                <div class="heatmap-item">
+                    <div class="heatmap-color" style="background: #22c55e;"></div>
+                    <span>Low (0-39%)</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- BOTTOM SHEET - LOCATION DETAILS / ANALYSIS RESULTS -->
+        <div class="bottom-sheet">
+            <div class="sheet-handle"></div>
+            <div class="bottom-sheet-content">
+                <div class="location-details">
+                    <h2>📍 Draw a Region to Analyze</h2>
+                    <p>Use the Leaflet draw tools on the map to select an area, then click "Analyze Region" button to get detailed infrastructure analysis.</p>
+                    <div style="margin-top: 20px; padding: 15px; background: #eff6ff; border-radius: 6px; border-left: 4px solid #3b82f6;">
+                        <h4 style="margin: 0 0 10px 0; color: #1e40af;">📌 How to Use:</h4>
+                        <ul style="margin: 0; padding-left: 20px; color: #1f2937; font-size: 13px;">
+                            <li>Use the drawing tools in the map to create a region (polygon, rectangle, or circle)</li>
+                            <li>Click "Analyze Region" to analyze roads in the selected area</li>
+                            <li>View detailed statistics and road information in this panel</li>
+                            <li>Click any road to see full details and AI recommendations</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet-draw/1.0.4/leaflet.draw.min.js"></script>
+
+    <!-- Integrated App Script -->
+    <script src="app-integrated.js"></script>
+
+    <script>
+        // Additional UI interactions
+        document.getElementById('search-filter-btn')?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const panel = document.querySelector('.search-expanded');
+            panel.style.display = panel.style.display === 'none' ? 'flex' : 'none';
+        });
+
+        document.addEventListener('click', () => {
+            const panel = document.querySelector('.search-expanded');
+            if (panel) panel.style.display = 'none';
+        });
+
+        // Prevent closing when clicking inside filter panel
+        document.querySelector('.search-expanded')?.addEventListener('click', (e) => {
+            e.stopPropagation();
+        });
+
+        console.log('✓ UI initialized');
+    </script>
+</body>
+</html>

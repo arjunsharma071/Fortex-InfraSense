@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>InfraSense AI - Advanced Infrastructure Dashboard</title>
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css" />
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <link rel="stylesheet" href="style.css">
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #f0f2f5;
+            overflow: hidden;
+        }
+        
+        .main-container {
+            display: flex;
+            height: 100vh;
+            gap: 0;
+        }
+        
+        /* Sidebar Navigation */
+        .sidebar-nav {
+            width: 70px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px 0;
+            box-shadow: 2px 0 8px rgba(0,0,0,0.1);
+            z-index: 100;
+        }
+        
+        .nav-logo {
+            font-size: 32px;
+            margin-bottom: 40px;
+            cursor: pointer;
+            transition: transform 0.3s;
+        }
+        
+        .nav-logo:hover {
+            transform: scale(1.1);
+        }
+        
+        .nav-item {
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            cursor: pointer;
+            margin: 8px 0;
+            transition: all 0.3s;
+            font-size: 20px;
+            position: relative;
+            background: rgba(255,255,255,0.1);
+        }
+        
+        .nav-item:hover {
+            background: rgba(255,255,255,0.2);
+            transform: translateX(8px);
+        }
+        
+        .nav-item.active {
+            background: white;
+            color: #667eea;
+        }
+        
+        /* Content Area */
+        .content-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        /* Header */
+        .dashboard-header {
+            background: white;
+            padding: 16px 24px;
+            border-bottom: 1px solid #e0e0e0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            height: 70px;
+        }
+        
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        
+        .header-title {
+            font-size: 20px;
+            font-weight: 700;
+            color: #333;
+        }
+        
+        .header-subtitle {
+            font-size: 12px;
+            color: #999;
+        }
+        
+        .api-status {
+            display: flex;
+            gap: 12px;
+        }
+        
+        .api-badge {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            background: #f0f0f0;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            color: #666;
+            transition: all 0.3s;
+        }
+        
+        .api-badge.active {
+            background: #e0f7ff;
+            color: #0288d1;
+        }
+        
+        .status-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #999;
+        }
+        
+        .api-badge.active .status-dot {
+            background: #4ade80;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        /* Dashboard Area */
+        .dashboard-area {
+            flex: 1;
+            display: flex;
+            gap: 0;
+            overflow: hidden;
+        }
+        
+        #map {
+            flex: 1;
+            background: #e0e0e0;
+            position: relative;
+        }
+        
+        /* Control Panel */
+        .control-panel {
+            width: 400px;
+            background: white;
+            border-left: 1px solid #e0e0e0;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: -2px 0 8px rgba(0,0,0,0.08);
+        }
+        
+        .panel-header {
+            padding: 16px;
+            border-bottom: 1px solid #f0f0f0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .panel-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .panel-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+        }
+        
+        .control-section {
+            margin-bottom: 20px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        
+        .control-section:last-child {
+            border-bottom: none;
+        }
+        
+        .section-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #555;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .input-group {
+            margin-bottom: 10px;
+        }
+        
+        .input-label {
+            display: block;
+            font-size: 11px;
+            font-weight: 500;
+            color: #777;
+            margin-bottom: 4px;
+        }
+        
+        input[type="text"],
+        input[type="number"],
+        select {
+            width: 100%;
+            padding: 8px 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 12px;
+            font-family: inherit;
+            transition: all 0.3s;
+        }
+        
+        input[type="text"]:focus,
+        input[type="number"]:focus,
+        select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .button-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-top: 10px;
+        }
+        
+        .button-row.full {
+            grid-template-columns: 1fr;
+        }
+        
+        button {
+            padding: 8px 12px;
+            border: none;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+            transform: translateY(-2px);
+        }
+        
+        .btn-secondary {
+            background: #f0f0f0;
+            color: #333;
+            border: 1px solid #ddd;
+        }
+        
+        .btn-secondary:hover {
+            background: #e8e8e8;
+        }
+        
+        .btn-danger {
+            background: #ef4444;
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background: #dc2626;
+        }
+        
+        /* Results Section */
+        .results-section {
+            background: #fafafa;
+            border-radius: 8px;
+            padding: 12px;
+            max-height: 280px;
+            overflow-y: auto;
+        }
+        
+        .result-item {
+            background: white;
+            padding: 10px;
+            margin-bottom: 8px;
+            border-radius: 4px;
+            border-left: 3px solid #667eea;
+            font-size: 11px;
+            line-height: 1.5;
+        }
+        
+        .result-title {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 4px;
+        }
+        
+        .result-detail {
+            color: #666;
+            font-size: 10px;
+        }
+        
+        .badge {
+            display: inline-block;
+            background: #e0e7ff;
+            color: #3730a3;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 9px;
+            margin-top: 6px;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+            color: #999;
+        }
+        
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid #f0f0f0;
+            border-top-color: #667eea;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 10px;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="main-container">
+        <!-- Sidebar Navigation -->
+        <div class="sidebar-nav">
+            <div class="nav-logo" title="InfraSense">🏗️</div>
+            <div class="nav-item active" title="Dashboard" onclick="switchTab('dashboard')">
+                🗺️
+            </div>
+            <div class="nav-item" title="Analysis" onclick="switchTab('analysis')">
+                📊
+            </div>
+            <div class="nav-item" title="Traffic" onclick="switchTab('traffic')">
+                🚗
+            </div>
+            <div class="nav-item" title="Settings" onclick="switchTab('settings')">
+                ⚙️
+            </div>
+        </div>
+        
+        <!-- Content Area -->
+        <div class="content-area">
+            <!-- Header -->
+            <div class="dashboard-header">
+                <div class="header-left">
+                    <div>
+                        <div class="header-title">InfraSense AI Dashboard</div>
+                        <div class="header-subtitle">Advanced Infrastructure Analysis & Routing</div>
+                    </div>
+                </div>
+                <div class="api-status">
+                    <div class="api-badge active" title="Google Maps">
+                        <span class="status-dot"></span>
+                        Google Maps
+                    </div>
+                    <div class="api-badge active" title="OpenStreetMap">
+                        <span class="status-dot"></span>
+                        OSM
+                    </div>
+                    <div class="api-badge active" title="GPT-4">
+                        <span class="status-dot"></span>
+                        GPT-4
+                    </div>
+                    <div class="api-badge active" title="Grok AI">
+                        <span class="status-dot"></span>
+                        Grok
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Dashboard Area -->
+            <div class="dashboard-area">
+                <!-- Map -->
+                <div id="map"></div>
+                
+                <!-- Control Panel -->
+                <div class="control-panel">
+                    <div class="panel-header">
+                        <div class="panel-title">
+                            <i class="fas fa-sliders-h"></i> Controls
+                        </div>
+                    </div>
+                    
+                    <div class="panel-body">
+                        <!-- Route Planning -->
+                        <div class="control-section">
+                            <div class="section-label">
+                                <i class="fas fa-route"></i> Route Planning
+                            </div>
+                            
+                            <div class="input-group">
+                                <label class="input-label">Origin (Lat, Lng)</label>
+                                <input type="text" id="originLat" placeholder="28.6139" style="width: 48%; display: inline-block; margin-right: 4%;">
+                                <input type="text" id="originLng" placeholder="77.2090" style="width: 48%; display: inline-block;">
+                            </div>
+                            
+                            <div class="input-group">
+                                <label class="input-label">Destination (Lat, Lng)</label>
+                                <input type="text" id="destLat" placeholder="28.5244" style="width: 48%; display: inline-block; margin-right: 4%;">
+                                <input type="text" id="destLng" placeholder="77.0855" style="width: 48%; display: inline-block;">
+                            </div>
+                            
+                            <div class="button-row">
+                                <button class="btn-primary" onclick="traceRoute()">Trace Route</button>
+                                <button class="btn-secondary" onclick="analyzeTraffic()">Traffic</button>
+                            </div>
+                        </div>
+                        
+                        <!-- Road Analysis -->
+                        <div class="control-section">
+                            <div class="section-label">
+                                <i class="fas fa-road"></i> Road Analysis
+                            </div>
+                            
+                            <div class="input-group">
+                                <label class="input-label">Location (Lat, Lng)</label>
+                                <input type="text" id="roadLat" placeholder="28.6139" style="width: 48%; display: inline-block; margin-right: 4%;">
+                                <input type="text" id="roadLng" placeholder="77.2090" style="width: 48%; display: inline-block;">
+                            </div>
+                            
+                            <div class="button-row">
+                                <button class="btn-primary" onclick="fetchRoads()">Get Roads</button>
+                                <button class="btn-secondary" onclick="analyzeRoads()">Analyze</button>
+                            </div>
+                        </div>
+                        
+                        <!-- Tools -->
+                        <div class="control-section">
+                            <div class="button-row full">
+                                <button class="btn-secondary" onclick="clearMap()">🗑️ Clear Map</button>
+                            </div>
+                            <div class="button-row full">
+                                <button class="btn-secondary" onclick="resetView()">↺ Reset View</button>
+                            </div>
+                        </div>
+                        
+                        <!-- Results -->
+                        <div class="control-section">
+                            <div class="section-label">
+                                <i class="fas fa-list"></i> Results
+                            </div>
+                            
+                            <div class="loading" id="loading">
+                                <div class="spinner"></div>
+                                <p>Processing...</p>
+                            </div>
+                            
+                            <div class="results-section" id="results">
+                                <div class="result-item">
+                                    <div class="result-title">Ready</div>
+                                    <div class="result-detail">Use controls above to analyze routes and roads</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
+    
+    <script>
+        let map = null;
+        let markers = [];
+        let polylines = [];
+        let currentTab = 'dashboard';
+        
+        // Initialize map
+        window.addEventListener('load', function() {
+            setTimeout(initializeMap, 100);
+        });
+        
+        function initializeMap() {
+            if (typeof L === 'undefined') {
+                console.error('Leaflet library not loaded');
+                return;
+            }
+            
+            const mapElement = document.getElementById('map');
+            if (!mapElement) {
+                console.error('Map element not found');
+                return;
+            }
+            
+            console.log('Initializing map...');
+            
+            map = L.map('map', {
+                center: [28.6139, 77.2090],
+                zoom: 12,
+                zoomControl: true
+            });
+            
+            // OpenStreetMap tiles
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors',
+                maxZoom: 19
+            }).addTo(map);
+            
+            console.log('✓ Map initialized');
+        }
+        
+        // Show/hide loading
+        function showLoading() {
+            document.getElementById('loading').style.display = 'block';
+        }
+        
+        function hideLoading() {
+            document.getElementById('loading').style.display = 'none';
+        }
+        
+        // Display results
+        function displayResults(html) {
+            document.getElementById('results').innerHTML = html;
+        }
+        
+        // API Functions
+        async function traceRoute() {
+            if (!map) { alert('Map not ready'); return; }
+            
+            const originLat = parseFloat(document.getElementById('originLat').value);
+            const originLng = parseFloat(document.getElementById('originLng').value);
+            const destLat = parseFloat(document.getElementById('destLat').value);
+            const destLng = parseFloat(document.getElementById('destLng').value);
+            
+            if (!originLat || !originLng || !destLat || !destLng) {
+                alert('Please enter valid coordinates');
+                return;
+            }
+            
+            showLoading();
+            clearMarkers();
+            
+            try {
+                const response = await fetch(
+                    `/api/routes/comprehensive?origin_lat=${originLat}&origin_lng=${originLng}&dest_lat=${destLat}&dest_lng=${destLng}`
+                );
+                const data = await response.json();
+                
+                // Add markers
+                L.circleMarker([originLat, originLng], {
+                    radius: 8,
+                    fillColor: '#4ade80',
+                    color: '#fff',
+                    weight: 2,
+                    opacity: 1,
+                    fillOpacity: 0.8
+                }).addTo(map).bindPopup('🟢 Origin');
+                
+                L.circleMarker([destLat, destLng], {
+                    radius: 8,
+                    fillColor: '#ef4444',
+                    color: '#fff',
+                    weight: 2,
+                    opacity: 1,
+                    fillOpacity: 0.8
+                }).addTo(map).bindPopup('🔴 Destination');
+                
+                map.fitBounds([[originLat, originLng], [destLat, destLng]]);
+                
+                // Results
+                let html = '<div class="result-item"><div class="result-title">✅ Route Found</div>';
+                if (data.routes && data.routes.google_maps && data.routes.google_maps.routes) {
+                    const route = data.routes.google_maps.routes[0];
+                    const leg = route.legs[0];
+                    html += `<div class="result-detail"><strong>Distance:</strong> ${leg.distance.text}</div>`;
+                    html += `<div class="result-detail"><strong>Duration:</strong> ${leg.duration.text}</div>`;
+                    html += `<span class="badge">🌐 Google Maps + OSM + AI</span>`;
+                }
+                html += '</div>';
+                displayResults(html);
+            } catch (error) {
+                displayResults(`<div class="result-item"><div class="result-title">❌ Error</div><div class="result-detail">${error.message}</div></div>`);
+            } finally {
+                hideLoading();
+            }
+        }
+        
+        async function fetchRoads() {
+            if (!map) { alert('Map not ready'); return; }
+            
+            const lat = parseFloat(document.getElementById('roadLat').value);
+            const lng = parseFloat(document.getElementById('roadLng').value);
+            
+            if (!lat || !lng) { alert('Please enter valid coordinates'); return; }
+            
+            showLoading();
+            
+            try {
+                const response = await fetch(`/api/roads/comprehensive?lat=${lat}&lng=${lng}&radius=5000`);
+                const data = await response.json();
+                
+                let html = `<div class="result-item"><div class="result-title">✅ Found ${data.roads ? data.roads.length : 0} roads</div>`;
+                if (data.roads && data.roads.length > 0) {
+                    data.roads.slice(0, 5).forEach((road, i) => {
+                        html += `<div class="result-detail" style="margin-top: 6px;"><strong>${i+1}. ${road.name || 'Unnamed'}</strong><br>Type: ${road.type || 'N/A'}</div>`;
+                    });
+                }
+                html += `<span class="badge">🗺️ OpenStreetMap</span></div>`;
+                displayResults(html);
+            } catch (error) {
+                displayResults(`<div class="result-item"><div class="result-title">❌ Error</div><div class="result-detail">${error.message}</div></div>`);
+            } finally {
+                hideLoading();
+            }
+        }
+        
+        function analyzeTraffic() {
+            displayResults('<div class="result-item"><div class="result-title">🚗 Analyzing Traffic</div><div class="result-detail">Processing traffic patterns...</div><span class="badge">🤖 AI Analysis</span></div>');
+        }
+        
+        function analyzeRoads() {
+            displayResults('<div class="result-item"><div class="result-title">📊 Road Analysis</div><div class="result-detail">Analyzing road conditions...</div><span class="badge">🤖 AI Analysis</span></div>');
+        }
+        
+        function clearMarkers() {
+            markers.forEach(m => map && map.removeLayer(m));
+            polylines.forEach(p => map && map.removeLayer(p));
+            markers = [];
+            polylines = [];
+        }
+        
+        function clearMap() {
+            clearMarkers();
+            displayResults('<div class="result-item"><div class="result-title">✓ Map cleared</div></div>');
+        }
+        
+        function resetView() {
+            if (map) {
+                map.setView([28.6139, 77.2090], 12);
+            }
+            displayResults('<div class="result-item"><div class="result-title">✓ View reset</div></div>');
+        }
+        
+        function switchTab(tab) {
+            currentTab = tab;
+            console.log('Switched to:', tab);
+        }
+    </script>
+</body>
+</html>

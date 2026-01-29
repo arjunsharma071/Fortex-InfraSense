@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analysis Dashboard - InfraSense</title>
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #0f172a;
+            color: #e2e8f0;
+        }
+        
+        .container {
+            display: flex;
+            min-height: 100vh;
+        }
+        
+        .sidebar {
+            width: 320px;
+            background: #1e293b;
+            border-right: 1px solid #334155;
+            padding: 20px;
+            overflow-y: auto;
+        }
+        
+        .logo {
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 30px;
+            color: #00d4ff;
+        }
+        
+        .search-section {
+            margin-bottom: 25px;
+        }
+        
+        .search-section label {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            color: #64748b;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+        }
+        
+        .search-input,
+        .filter-select {
+            width: 100%;
+            background: #0f172a;
+            border: 1px solid #334155;
+            color: #e2e8f0;
+            padding: 10px 12px;
+            border-radius: 6px;
+            font-size: 14px;
+            margin-bottom: 12px;
+        }
+        
+        .search-input:focus,
+        .filter-select:focus {
+            outline: none;
+            border-color: #00d4ff;
+            box-shadow: 0 0 8px rgba(0, 212, 255, 0.2);
+        }
+        
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .header {
+            background: #1e293b;
+            border-bottom: 1px solid #334155;
+            padding: 20px;
+        }
+        
+        .header h1 {
+            font-size: 28px;
+            color: #00d4ff;
+            margin-bottom: 8px;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        
+        .stat-card {
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            padding: 15px;
+        }
+        
+        .stat-label {
+            font-size: 12px;
+            color: #64748b;
+            margin-bottom: 5px;
+        }
+        
+        .stat-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: #00d4ff;
+        }
+        
+        .content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+        }
+        
+        .results-section {
+            margin-bottom: 30px;
+        }
+        
+        .results-header {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 15px;
+            color: #e2e8f0;
+        }
+        
+        .roads-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        
+        .road-item {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            padding: 15px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .road-item:hover {
+            border-color: #00d4ff;
+            box-shadow: 0 0 8px rgba(0, 212, 255, 0.1);
+            transform: translateX(4px);
+        }
+        
+        .road-name {
+            font-weight: 600;
+            color: #00d4ff;
+            margin-bottom: 8px;
+        }
+        
+        .road-info {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            font-size: 13px;
+            color: #cbd5e1;
+        }
+        
+        .detail-panel {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+        
+        .detail-panel h3 {
+            color: #00d4ff;
+            margin-bottom: 15px;
+            font-size: 16px;
+        }
+        
+        .detail-breakdown {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .detail-item {
+            background: #0f172a;
+            border-left: 3px solid #00d4ff;
+            padding: 12px;
+            border-radius: 4px;
+        }
+        
+        .detail-item-label {
+            font-size: 12px;
+            color: #64748b;
+            margin-bottom: 5px;
+        }
+        
+        .detail-item-value {
+            font-size: 18px;
+            font-weight: 700;
+            color: #00d4ff;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="logo">
+                🏗️ InfraSense Analysis
+            </div>
+            
+            <div class="search-section">
+                <label>Search Roads</label>
+                <input type="text" class="search-input" id="searchRoads" placeholder="Search by name...">
+            </div>
+            
+            <div class="search-section">
+                <label>Filter by Area</label>
+                <select class="filter-select" id="filterArea">
+                    <option value="">All Areas</option>
+                    <option value="Delhi">Delhi</option>
+                    <option value="Gurgaon">Gurgaon</option>
+                    <option value="Bangalore">Bangalore</option>
+                </select>
+            </div>
+            
+            <div class="search-section">
+                <label>Filter by Priority</label>
+                <select class="filter-select" id="filterPriority">
+                    <option value="">All Priorities</option>
+                    <option value="Critical">Critical</option>
+                    <option value="High">High</option>
+                    <option value="Medium">Medium</option>
+                </select>
+            </div>
+            
+            <div class="search-section">
+                <label>Filter by Type</label>
+                <select class="filter-select" id="filterType">
+                    <option value="">All Types</option>
+                    <option value="Highway">Highway</option>
+                    <option value="Primary">Primary</option>
+                    <option value="Secondary">Secondary</option>
+                </select>
+            </div>
+        </div>
+        
+        <!-- Main Content -->
+        <div class="main-content">
+            <div class="header">
+                <h1>Infrastructure Analysis</h1>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-label">Total Roads</div>
+                        <div class="stat-value" id="totalRoads">3</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Critical Count</div>
+                        <div class="stat-value" id="criticalCount">2</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Total Cost</div>
+                        <div class="stat-value" id="totalCost">₹530Cr</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Annual Savings</div>
+                        <div class="stat-value" id="annualSavings">2.5M hrs</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="content">
+                <div class="results-section">
+                    <div class="results-header">Search Results</div>
+                    <div class="roads-list" id="roadsList">
+                        <!-- Results loaded here -->
+                    </div>
+                </div>
+                
+                <div class="detail-panel" id="detailPanel" style="display: none;">
+                    <h3 id="detailTitle">Road Details</h3>
+                    <div class="detail-breakdown" id="detailBreakdown">
+                        <!-- Details loaded here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const roadsDatabase = [
+            {
+                name: 'NH-1 (Delhi-Panipat)',
+                area: 'Delhi',
+                priority: 'Critical',
+                type: 'Highway',
+                cost: 180,
+                timeSaved: 45,
+                description: 'Delhi to Panipat Highway Enhancement'
+            },
+            {
+                name: 'NH-8 (Delhi-Gurgaon)',
+                area: 'Gurgaon',
+                priority: 'High',
+                type: 'Highway',
+                cost: 210,
+                timeSaved: 38,
+                description: 'Delhi to Gurgaon Expressway Expansion'
+            },
+            {
+                name: 'Ring Road (Delhi)',
+                area: 'Delhi',
+                priority: 'Critical',
+                type: 'Primary',
+                cost: 140,
+                timeSaved: 60,
+                description: 'Delhi Ring Road Modernization'
+            }
+        ];
+        
+        class AnalysisDashboard {
+            constructor() {
+                this.allRoads = roadsDatabase;
+                this.filteredRoads = roadsDatabase;
+            }
+            
+            init() {
+                this.setupEventListeners();
+                this.renderRoads();
+                this.updateStats();
+            }
+            
+            setupEventListeners() {
+                document.getElementById('searchRoads').addEventListener('keyup', () => this.applyFilters());
+                document.getElementById('filterArea').addEventListener('change', () => this.applyFilters());
+                document.getElementById('filterPriority').addEventListener('change', () => this.applyFilters());
+                document.getElementById('filterType').addEventListener('change', () => this.applyFilters());
+            }
+            
+            applyFilters() {
+                const search = document.getElementById('searchRoads').value.toLowerCase();
+                const area = document.getElementById('filterArea').value;
+                const priority = document.getElementById('filterPriority').value;
+                const type = document.getElementById('filterType').value;
+                
+                this.filteredRoads = this.allRoads.filter(road => {
+                    const matchesSearch = road.name.toLowerCase().includes(search) || road.description.toLowerCase().includes(search);
+                    const matchesArea = !area || road.area === area;
+                    const matchesPriority = !priority || road.priority === priority;
+                    const matchesType = !type || road.type === type;
+                    
+                    return matchesSearch && matchesArea && matchesPriority && matchesType;
+                });
+                
+                this.renderRoads();
+                this.updateStats();
+            }
+            
+            renderRoads() {
+                const list = document.getElementById('roadsList');
+                list.innerHTML = '';
+                
+                if (this.filteredRoads.length === 0) {
+                    list.innerHTML = '<p style="color: #64748b; text-align: center;">No roads found</p>';
+                    return;
+                }
+                
+                this.filteredRoads.forEach((road, index) => {
+                    const item = document.createElement('div');
+                    item.className = 'road-item';
+                    item.innerHTML = `
+                        <div class="road-name">${road.name}</div>
+                        <div class="road-info">
+                            <div><strong>Type:</strong> ${road.type}</div>
+                            <div><strong>Priority:</strong> <span style="color: ${road.priority === 'Critical' ? '#ff4444' : '#ffaa00'}">${road.priority}</span></div>
+                            <div><strong>Cost:</strong> ₹${road.cost}Cr</div>
+                            <div><strong>Time Saved:</strong> ${road.timeSaved} min/trip</div>
+                        </div>
+                    `;
+                    
+                    item.addEventListener('click', () => this.showDetail(road));
+                    list.appendChild(item);
+                });
+            }
+            
+            showDetail(road) {
+                document.getElementById('detailPanel').style.display = 'block';
+                document.getElementById('detailTitle').textContent = road.name;
+                
+                const breakdown = document.getElementById('detailBreakdown');
+                const annualTimeSavings = road.timeSaved * 500000 * 260; // per trip × vehicles × working days
+                const costPerKm = road.cost / 10; // Approximate
+                
+                breakdown.innerHTML = `
+                    <div class="detail-item">
+                        <div class="detail-item-label">Total Cost</div>
+                        <div class="detail-item-value">₹${road.cost}Cr</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-item-label">Per-Trip Savings</div>
+                        <div class="detail-item-value">${road.timeSaved} min</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-item-label">Annual Savings</div>
+                        <div class="detail-item-value">${(annualTimeSavings / 1000000).toFixed(1)}M hrs</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-item-label">Economic Value</div>
+                        <div class="detail-item-value">₹${(road.cost / 5).toFixed(0)}Cr</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-item-label">Priority</div>
+                        <div class="detail-item-value">${road.priority}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-item-label">Type</div>
+                        <div class="detail-item-value">${road.type}</div>
+                    </div>
+                `;
+            }
+            
+            updateStats() {
+                document.getElementById('totalRoads').textContent = this.filteredRoads.length;
+                document.getElementById('criticalCount').textContent = this.filteredRoads.filter(r => r.priority === 'Critical').length;
+                const totalCost = this.filteredRoads.reduce((sum, r) => sum + r.cost, 0);
+                document.getElementById('totalCost').textContent = `₹${totalCost}Cr`;
+                const totalSavings = this.filteredRoads.reduce((sum, r) => sum + r.timeSaved, 0);
+                document.getElementById('annualSavings').textContent = `${(totalSavings * 500000 * 260 / 1000000).toFixed(1)}M hrs`;
+            }
+        }
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            const dashboard = new AnalysisDashboard();
+            dashboard.init();
+        });
+    </script>
+</body>
+</html>
